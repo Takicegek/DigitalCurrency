@@ -18,8 +18,8 @@ import java.util.List;
  */
 public class Node {
 
-    private static final int LOG_NODES = 10;
-    private static final long NUMBER_OF_NODES = (long) Math.pow(2, LOG_NODES);
+    protected static final int LOG_NODES = 10;
+    protected static final long NUMBER_OF_NODES = 1 << LOG_NODES;
 
     private long id;
     private int port;
@@ -36,7 +36,7 @@ public class Node {
         bootstrapNodes = new ArrayList<Integer>();
         bootstrapNodes.add(10000);
 
-        fingerTable = new ArrayList<Pair<NodeInfo, Streams>>();
+        fingerTable = new ArrayList<Pair<NodeInfo, Streams>>(LOG_NODES);
         // the identifier for this node in the ring
         id = (long) ((Math.random() * NUMBER_OF_NODES));
         System.out.println("Am id-ul " + id);
@@ -55,7 +55,7 @@ public class Node {
                 writer.flush();
 
                 ObjectInputStream reader = new ObjectInputStream(s.getInputStream());
-                Message received = (Message) reader.readObject(); // todo this may return null
+                Message received = (Message) reader.readObject();
 
                 if (received.getType() == MessageType.FIND_SUCCESSOR) {
                     successor = new Pair<NodeInfo, Streams>();
@@ -75,6 +75,7 @@ public class Node {
             }
         }
 
+        // run the SocketListener in a separate thread to handle incoming messages
         new Thread() {
             @Override
             public void run() {
@@ -82,6 +83,8 @@ public class Node {
             }
         }.start();
 
+        // periodically run the stabilize procedure to check if a node joined between this node and its successor
+        // and to inform the successor that this node is its predecessor (in case the current node just joined)
         new Thread() {
             @Override
             public void run() {
@@ -96,6 +99,9 @@ public class Node {
                 }
             }
         }.start();
+
+        // create a separate thread that will fix the fingers
+//        new FixFingersThread(fingerTable, id).start();
     }
 
     /**
@@ -159,7 +165,7 @@ public class Node {
             System.out.println("Stabilized the first node in ring.");
         } else {
             // if another node joined and it has this node as its successor, it notifies and the current
-            // node changes its predecessor.
+            // node changes its predecessor; check if the predecessor is changed.
             if (predecessor.getFirst().getKey() != id && predecessor.getFirst().getPort() != port) {
                 // another node joined and it is between the current node and its successor
                 // set that node as a successor

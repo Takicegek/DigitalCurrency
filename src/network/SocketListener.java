@@ -33,7 +33,6 @@ public class SocketListener implements Runnable {
             while((messageObject = reader.readObject()) != null) {
                 Message message = (Message) messageObject;
 
-
                 if (message.getType() == MessageType.FIND_SUCCESSOR) {
                     handleFindSuccessor(message);
                 }
@@ -45,20 +44,24 @@ public class SocketListener implements Runnable {
 
                 // message from predecessor
                 if (message.getType() == MessageType.NOTIFY_SUCCESSOR) {
-                    NodeInfo nodeInfo = (NodeInfo) message.getObject();
-                    if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().equals(nodeInfo)) {
-                        // the current node has a new predecessor so save it
-                        Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
-                        correspondingNode.setPredecessor(new Pair<NodeInfo, Streams>(nodeInfo, new Streams(socket)));
-
-                        System.out.println("I have a new predecessor. It is " + nodeInfo.toString());
-                    }
+                    handleNotifySuccessor(message);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void handleNotifySuccessor(Message message) throws IOException {
+        NodeInfo nodeInfo = (NodeInfo) message.getObject();
+        if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().equals(nodeInfo)) {
+            // the current node has a new predecessor so save it
+            Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
+            correspondingNode.setPredecessor(new Pair<NodeInfo, Streams>(nodeInfo, new Streams(socket)));
+
+            System.out.println("I have a new predecessor. It is " + nodeInfo.toString());
         }
     }
 

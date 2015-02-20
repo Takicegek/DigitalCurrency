@@ -5,6 +5,6 @@ import network.Node;
  */
 public class Main {
     public static void main(String[] args) {
-        Node bootstrap = new Node("localhost", 10000);
+        Node bootstrap = new Node("localhost", 10006);
     }
 }
