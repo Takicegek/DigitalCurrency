@@ -55,7 +55,7 @@ public class Node {
                 writer.flush();
 
                 ObjectInputStream reader = new ObjectInputStream(s.getInputStream());
-                Message received = (Message) reader.readObject();
+                Message received = (Message) reader.readObject(); // todo this may return null
 
                 if (received.getType() == MessageType.FIND_SUCCESSOR) {
                     successor = new Pair<NodeInfo, Streams>();
@@ -122,12 +122,18 @@ public class Node {
                 NodeInfo receivedNode = (NodeInfo) received.getObject();
                 System.out.println("Asked my successor " + successor.getFirst() + " about its predecessor and the answer is: " + receivedNode);
 
-                // another node is between the current node and its successor
-                // change the successor
-                if (receivedNode != null && receivedNode.getKey() != id) {
+                // if my successor has a predecessor different by, there are two cases
+                // 1. I just joined and my successor does not know about me
+                // 2. Another node joined between me and my successor
+                // Should determine here if I change the successor.
+                if (receivedNode != null && receivedNode.getKey() != id &&
+                        SocketListener.belongsToInterval(receivedNode.getKey(), id, successor.getFirst().getKey())) {
+                    // the predecessor received from my successor is in front of me, so it becomes my successor
                     Socket socket = new Socket(receivedNode.getIp(), receivedNode.getPort());
                     Streams streams = new Streams(socket);
                     successor = new Pair<NodeInfo, Streams>(receivedNode, streams);
+                    fingerTable.remove(0);
+                    fingerTable.add(successor);
                     System.out.println("I have a new successor! It is " + receivedNode.toString());
                 }
 

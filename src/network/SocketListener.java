@@ -33,33 +33,9 @@ public class SocketListener implements Runnable {
             while((messageObject = reader.readObject()) != null) {
                 Message message = (Message) messageObject;
 
+
                 if (message.getType() == MessageType.FIND_SUCCESSOR) {
-                    if (message.getObject() instanceof Long) {
-                        long id = (Long) message.getObject();
-                        if (belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
-                            // the node is between this one and its successor, send the successor id
-                            writer.writeObject(new Message(MessageType.FIND_SUCCESSOR, correspondingNode.getSuccessor()));
-                            System.out.println(id + " is between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
-                        } else {
-                            // forward the message
-                            for (int i = correspondingNode.getFingerTable().size() - 1; i >= 0; i--) {
-                                long fingerId = correspondingNode.getFingerTable().get(i).getFirst().getKey();
-                                if (fingerId < id) {
-                                    ObjectOutputStream oos = correspondingNode.getFingerTable().get(i).getSecond().getObjectOutputStream();
-                                    oos.writeObject(new Message(MessageType.FIND_SUCCESSOR, id));
-
-                                    ObjectInputStream ois = correspondingNode.getFingerTable().get(i).getSecond().getObjectInputStream();
-                                    Message received = (Message) ois.readObject();
-
-                                    // forward the message to the caller
-                                    writer.writeObject(received);
-                                    break;
-                                }
-                            }
-                        }
-                    } else {
-                        throw new RuntimeException("Find Successor message does not contain a long.");
-                    }
+                    handleFindSuccessor(message);
                 }
 
                 // respond with the predecessor of the current node
@@ -86,7 +62,50 @@ public class SocketListener implements Runnable {
         }
     }
 
-    private boolean belongsToInterval(long id, long nodeId, long successor) {
+    private void handleFindSuccessor(Message message) throws IOException, ClassNotFoundException {
+        Message answer = null;
+        if (message.getObject() instanceof Long) {
+            long id = (Long) message.getObject();
+            if (belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
+                // the node is between this one and its successor, send the successor id
+                answer = new Message(MessageType.FIND_SUCCESSOR, correspondingNode.getSuccessor());
+                System.out.println(id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
+                System.out.println("Its successor will be " + correspondingNode.getSuccessor());
+            } else {
+                System.out.println(id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
+
+                // find the closest preceding node
+                Pair<NodeInfo, Streams> closestPreceding = closestPrecedingNode(id);
+                System.out.println("Send the request further to " + closestPreceding.getFirst());
+
+                // forward the message
+                closestPreceding.getSecond().getObjectOutputStream().writeObject(message);
+                answer = (Message) closestPreceding.getSecond().getObjectInputStream().readObject();
+            }
+
+            if (answer == null) {
+                throw new RuntimeException("The answer I have to return is null.");
+            } else {
+                System.out.println(id + " asked me about its successor. It is " + answer.getObject());
+            }
+            writer.writeObject(answer);
+        } else {
+            throw new RuntimeException("Find Successor message does not contain a long.");
+        }
+    }
+
+    private Pair<NodeInfo, Streams> closestPrecedingNode(long key) {
+        for (int i = correspondingNode.getFingerTable().size() - 1; i >= 0; i--) {
+            long fingerId = correspondingNode.getFingerTable().get(i).getFirst().getKey();
+
+            if (belongsToInterval(fingerId, correspondingNode.getId(), key)) {
+                return correspondingNode.getFingerTable().get(i);
+            }
+        }
+        return correspondingNode.getFingerTable().get(0);
+    }
+
+    protected static boolean belongsToInterval(long id, long nodeId, long successor) {
         if (nodeId < successor && nodeId < id && id < successor) {
             return true;
         }
