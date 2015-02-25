@@ -12,8 +12,10 @@ public class Streams {
 
     private ObjectOutputStream objectOutputStream;
     private ObjectInputStream objectInputStream;
+    private Socket socket;
 
     public Streams(Socket socket) {
+        this.socket = socket;
         try {
             objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
             objectInputStream = new ObjectInputStream(socket.getInputStream());
@@ -21,11 +23,6 @@ public class Streams {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public Streams(ObjectOutputStream objectOutputStream, ObjectInputStream objectInputStream) {
-        this.objectOutputStream = objectOutputStream;
-        this.objectInputStream = objectInputStream;
     }
 
     public ObjectOutputStream getObjectOutputStream() {
@@ -42,5 +39,13 @@ public class Streams {
 
     public void setObjectInputStream(ObjectInputStream objectInputStream) {
         this.objectInputStream = objectInputStream;
+    }
+
+    public void closeSocket() {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
