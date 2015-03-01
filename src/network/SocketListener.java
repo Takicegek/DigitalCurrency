@@ -1,9 +1,9 @@
 package network;
 
-import utils.Pair;
-
 import java.io.*;
 import java.net.Socket;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Created by Sorin Nutu on 2/17/2015.
@@ -14,8 +14,9 @@ public class SocketListener implements Runnable {
     private ObjectInputStream reader;
     private ObjectOutputStream writer;
     private Node correspondingNode;
+    private Dispatcher dispatcher;
 
-    public SocketListener(Socket client, Node correspondingNode) {
+    public SocketListener(Socket client, Node correspondingNode, Dispatcher dispatcher) {
         this.client = client;
         this.correspondingNode = correspondingNode;
         try {
@@ -24,6 +25,7 @@ public class SocketListener implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        this.dispatcher = dispatcher;
     }
 
     @Override
@@ -33,15 +35,12 @@ public class SocketListener implements Runnable {
             while((messageObject = reader.readObject()) != null) {
                 Message message = (Message) messageObject;
 
-                // insert the message in the message pool; it may be for another thread
-//                correspondingNode.insertMessage(message);
-
                 if (message.getType() == MessageType.FIND_SUCCESSOR_JOIN) {
                     long id = (Long) message.getObject();
 
                     // if a node with that id already exists, send back a USED_ID message
                     if (id == correspondingNode.getId() || id == correspondingNode.getSuccessor().getKey()) {
-                        Message answer = new Message(MessageType.USED_ID, null);
+                        Message answer = new Message(MessageType.SUCCESSOR_FOUND, null, message.getTag());
                         writer.writeObject(answer);
                         writer.flush();
                     } else {
@@ -65,10 +64,11 @@ public class SocketListener implements Runnable {
 
                 // respond with the predecessor of the current node
                 if (message.getType() == MessageType.GET_PREDECESSOR) {
+                    int tag = message.getTag();
                     if (correspondingNode.getPredecessor() != null) {
-                        writer.writeObject(new Message(MessageType.GET_PREDECESSOR, correspondingNode.getPredecessor().getFirst()));
+                        writer.writeObject(new Message(MessageType.SEND_PREDECESSOR, correspondingNode.getPredecessor().getNodeInfo(), tag));
                     } else {
-                        writer.writeObject(new Message(MessageType.GET_PREDECESSOR, null));
+                        writer.writeObject(new Message(MessageType.SEND_PREDECESSOR, null, tag));
                     }
                     writer.flush();
                 }
@@ -79,7 +79,7 @@ public class SocketListener implements Runnable {
                 }
 
                 if (message.getType() == MessageType.PING) {
-                    writer.writeObject(new Message(MessageType.PING, null));
+                    writer.writeObject(new Message(MessageType.PING, null, message.getTag()));
                     writer.flush();
                 }
             }
@@ -92,62 +92,77 @@ public class SocketListener implements Runnable {
 
     private void handleNotifySuccessor(Message message) throws IOException {
         NodeInfo nodeInfo = (NodeInfo) message.getObject();
-        if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().getFirst().equals(nodeInfo)) {
+        if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().getNodeInfo().equals(nodeInfo)) {
             // the current node has a new predecessor so save it
             Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
 
             // close the current socket for the predecessor
-            if (correspondingNode.getPredecessor() != null && correspondingNode.getPredecessor().getSecond() != null) {
-                correspondingNode.getPredecessor().getSecond().closeSocket();
+            if (correspondingNode.getPredecessor() != null && correspondingNode.getPredecessor().getStreams() != null) {
+                correspondingNode.getPredecessor().closeSocket();
             }
 
-            correspondingNode.setPredecessor(new Pair<NodeInfo, Streams>(nodeInfo, new Streams(socket)));
+            correspondingNode.setPredecessor(new CompleteNodeInfo(nodeInfo, new Streams(socket)));
 
             System.out.println(correspondingNode.getId() + ": I have a new predecessor. It is " + nodeInfo.toString());
         }
     }
 
     private void handleFindSuccessor(Message message) throws IOException, ClassNotFoundException {
+        // store the message tag to attach it back later
+        int tag = message.getTag();
+
         Message answer = null;
-        if (message.getObject() instanceof Long) {
-            long id = (Long) message.getObject();
 
-            if (belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
-                // the node is between this one and its successor, send the successor id
-                answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor());
-                System.out.println(id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
-                System.out.println("Its successor will be " + correspondingNode.getSuccessor());
-            } else {
-                System.out.println(id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
+        long id = (Long) message.getObject();
 
-                // find the closest preceding node
-                Pair<NodeInfo, Streams> closestPreceding = closestPrecedingNode(id);
-                System.out.println("Send the request further to " + closestPreceding.getFirst());
-
-                // forward the message
-                closestPreceding.getSecond().getObjectOutputStream().writeObject(message);
-                closestPreceding.getSecond().getObjectOutputStream().flush();
-
-                // wait for the answer
-                answer = (Message) closestPreceding.getSecond().getObjectInputStream().readObject();
-            }
-
-            writer.writeObject(answer);
-            writer.flush();
+        if (belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
+            // the node is between this one and its successor, send the successor id
+            answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor().getNodeInfo());
+            System.out.println(id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
+            System.out.println("Its successor will be " + correspondingNode.getSuccessor().getNodeInfo());
         } else {
-            throw new RuntimeException("Find Successor message does not contain a long.");
+            System.out.println(id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
+
+            // find the closest preceding node
+            int closestPreceding = closestPrecedingNode(id);
+            System.out.println("Send the request further to " +
+                    correspondingNode.getFingerTable().get(closestPreceding).getNodeInfo());
+
+            // forward the message and retrieve it from the Future object
+            // this is not a response, it is a message for a node to which this node may send messages
+            // from other threads, so use the dispatcher
+            Future<Message> messageFuture = null;
+            try {
+                messageFuture = dispatcher.sendMessage(message, closestPreceding);
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+            try {
+                answer = messageFuture.get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
         }
+
+        // put back the tag
+        answer.setTag(tag);
+
+        writer.writeObject(answer);
+        writer.flush();
+
     }
 
-    private Pair<NodeInfo, Streams> closestPrecedingNode(long key) {
-        for (int i = correspondingNode.getFingerTable().size() - 1; i >= 0; i--) {
-            long fingerId = correspondingNode.getFingerTable().get(i).getFirst().getKey();
+    private int closestPrecedingNode(long key) {
+        /*for (int i = correspondingNode.getFingerTable().size() - 1; i >= 0; i--) {
+            long fingerId = correspondingNode.getFingerTable().get(i).getKey();
 
             if (belongsToInterval(fingerId, correspondingNode.getId(), key)) {
                 return correspondingNode.getFingerTable().get(i);
             }
-        }
-        return correspondingNode.getFingerTable().get(0);
+        }*/
+        return 0; // the successor
     }
 
     protected static boolean belongsToInterval(long id, long nodeId, long successor) {

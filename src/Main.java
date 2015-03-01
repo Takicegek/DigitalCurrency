@@ -5,7 +5,7 @@ import network.Node;
  */
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        Node bootstrap = new Node("localhost", 10005);
+        Node bootstrap = new Node("localhost", 10008);
 //                            10 - 14 - 21  26 - 30 -
 //        new Node("localhost", 10001);
 
