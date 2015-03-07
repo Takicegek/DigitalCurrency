@@ -1,8 +1,10 @@
 package network;
+import utils.NodeGUI;
+
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -21,6 +23,7 @@ public class StabilizeThread extends Thread {
         this.id = correspondingNode.getId();
         this.port = correspondingNode.getPort();
         this.dispatcher = dispatcher;
+        Thread.currentThread().setName("Stabilize thread");
     }
 
     @Override
@@ -46,15 +49,12 @@ public class StabilizeThread extends Thread {
 
         while (true) {
             if (correspondingNode.getSuccessor().getKey() == id && correspondingNode.getSuccessor().getPort() == port) {
-                System.out.println("Stabilize first node . . ");
+                System.out.println((new Date()).toString() + " " +"Stabilize first node . . ");
                 stabilizeFirstNodeInRing();
             } else {
-                System.out.println("Stabilize node (ask successor about predecessor and notify predecessor) ");
+                System.out.println((new Date()).toString() + " " +"Stabilize node (ask successor about predecessor and notify predecessor) ");
                 // ask the successor for its predecessor
                 // reuse the streams associated with the successor
-                boolean ioException = false;
-                ObjectOutputStream outputStream = null;
-
                 /*
                     If an IOException occurs, it means that the successor left.
                     A FIND_SUCCESSOR_JOIN message is sent to a bootstrap node and a new successor is found.
@@ -64,11 +64,7 @@ public class StabilizeThread extends Thread {
                 Future<Message> messageFuture = null;
 
                 Message message = new Message(MessageType.GET_PREDECESSOR, null);
-                try {
-                    messageFuture = dispatcher.sendMessage(message, 0);
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                }
+                messageFuture = dispatcher.sendMessage(message, true, 0);
 
                 // get the answer
                 // exit the current iteration of the while loop if an exception is caught
@@ -81,9 +77,9 @@ public class StabilizeThread extends Thread {
 
                 // we know that the object inside the message is a NodeInfo
                 NodeInfo receivedNode = (NodeInfo) received.getObject();
-                System.out.println("Asked my successor " + correspondingNode.getSuccessor().getNodeInfo() + " about its predecessor and the answer is: " + receivedNode);
+                System.out.println((new Date()).toString() + " " +"Asked my successor " + correspondingNode.getSuccessor().getNodeInfo() + " about its predecessor and the answer is: " + receivedNode);
 
-                // if my successor has a predecessor different by, there are two cases
+                // if my successor has a predecessor different by me, there are two cases
                 // 1. I just joined and my successor does not know about me
                 // 2. Another node joined between me and my successor
                 // Should determine here if I change the successor.
@@ -95,7 +91,7 @@ public class StabilizeThread extends Thread {
                     Streams streams = new Streams(socket);
 
                     // close the old socket
-                    correspondingNode.getSuccessor().closeSocket();
+//                    correspondingNode.getSuccessor().closeSocket();
 
                     CompleteNodeInfo successor = new CompleteNodeInfo(receivedNode, streams);
                     correspondingNode.setSuccessor(successor);
@@ -103,12 +99,11 @@ public class StabilizeThread extends Thread {
                     correspondingNode.getFingerTable().remove(0);
                     correspondingNode.getFingerTable().add(0, successor);
 
-                    System.out.println(id + ": I have a new successor! It is " + receivedNode.toString());
+                    System.out.println((new Date()).toString() + " " +id + ": I have a new successor! It is " + receivedNode.toString());
                 }
-
                 // notify the successor about its predecessor, which is the current node
                 Message notifyMessage = new Message(MessageType.NOTIFY_SUCCESSOR, new NodeInfo(correspondingNode.getIp(), port, id));
-                dispatcher.sendMessageWithoutAnswer(notifyMessage, 0);
+                dispatcher.sendMessage(notifyMessage, false, 0);
             }
 
             Thread.sleep(5000);
@@ -124,7 +119,7 @@ public class StabilizeThread extends Thread {
     private void stabilizeFirstNodeInRing() {
         if (correspondingNode.getPredecessor() == null) {
             correspondingNode.setPredecessor(new CompleteNodeInfo(new NodeInfo(correspondingNode.getIp(), port, id), null));
-            System.out.println("Stabilized the first node in ring.");
+            System.out.println((new Date()).toString() + " " +"Stabilized the first node in ring.");
         } else {
             // if another node joined and it has this node as its successor, it notifies and the current
             // node changes its predecessor; check if the predecessor is changed.

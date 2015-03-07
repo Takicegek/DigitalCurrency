@@ -1,5 +1,7 @@
 package network;
 
+import utils.NodeGUI;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -17,7 +19,7 @@ import java.util.concurrent.Future;
  */
 public class Node {
 
-    protected static final int LOG_NODES = 3;
+    protected static final int LOG_NODES = 10;
     protected static final long NUMBER_OF_NODES = 1 << LOG_NODES;
     protected static final long STORED_SUCCESSORS = 2;
 
@@ -50,7 +52,6 @@ public class Node {
 
         if (bootstrapNodes.contains(port)) {
             successor = new CompleteNodeInfo(new NodeInfo(ip, port, id), null);
-            fingerTable.add(successor);
         } else {
             try {
                 successor = new CompleteNodeInfo();
@@ -61,10 +62,14 @@ public class Node {
                 successor.setStreams(new Streams(successorSocket));
 
                 System.out.println(id + ": My successor is " + successor.getKey());
-                fingerTable.add(successor);
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        // fill the fingertable
+        for (int i = 0; i < LOG_NODES; i++) {
+            fingerTable.add(successor);
         }
 
         // run the SocketListener in a separate thread to handle incoming messages
@@ -80,7 +85,7 @@ public class Node {
         new StabilizeThread(this, dispatcher).start();
 
         // create a separate thread that will fix the fingers
-//        new FixFingersThread(dispatcher, id, this).start();
+        new FixFingersThread(dispatcher, id, this).start();
     }
 
 
@@ -89,18 +94,17 @@ public class Node {
         NodeInfo nodeInfo = null;
         try {
             Socket s = new Socket(ip, port);
-            ObjectOutputStream writer = new ObjectOutputStream(s.getOutputStream());
-            ObjectInputStream reader = new ObjectInputStream(s.getInputStream());
-
             boolean collision;
+            Message message = new Message(MessageType.FIND_SUCCESSOR_JOIN, id);
+            NodeInfo info = new NodeInfo(ip, port, -1);
+            Streams streams = new Streams(s);
 
             // loop until an id that is not already present in the ring is found
             do {
                 collision = false;
 
-                Message message = new Message(MessageType.FIND_SUCCESSOR_JOIN, id);
-                Future<Message> messageFuture = dispatcher.sendMessage(message, writer, reader);
-
+                System.out.println(message);
+                Future<Message> messageFuture = dispatcher.sendMessage(message, true, new CompleteNodeInfo(info, streams));
                 Message received = messageFuture.get();
 
                 if (received.getObject() != null) {
@@ -109,7 +113,8 @@ public class Node {
                     // the message body is null so the id is already in use
                     collision = true;
                     id = (long) ((Math.random() * NUMBER_OF_NODES));
-                    System.out.println("Am id-ul " + id);
+                    System.out.println("Coliziune. Noul id: " + id);
+                    message.setObject(id);
                 }
             } while (collision == true);
 
@@ -138,6 +143,7 @@ public class Node {
             Socket client;
             try {
                 client = serverSocket.accept();
+                System.out.println("PORNESC UN LISTENER . . .");
                 dealWithClient(client);
             } catch (IOException e) {
                 e.printStackTrace();

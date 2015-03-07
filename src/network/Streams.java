@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * Created by Sorin Nutu on 2/19/2015.
@@ -47,5 +48,9 @@ public class Streams {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void setSoTimeout(int timeout) throws SocketException {
+        socket.setSoTimeout(timeout);
     }
 }

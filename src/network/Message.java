@@ -22,6 +22,10 @@ public class Message implements Serializable {
         this.tag = tag;
     }
 
+    public Message() {
+
+    }
+
     public int getTag() {
         return tag;
     }

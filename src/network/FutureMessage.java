@@ -12,6 +12,7 @@ public class FutureMessage implements Future<Message> {
 
     protected Message message;
 
+
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
         return false;
@@ -30,7 +31,9 @@ public class FutureMessage implements Future<Message> {
     @Override
     public Message get() throws InterruptedException, ExecutionException {
         synchronized (this) {
+            System.err.println("ASTEPT ELIBERAREA!");
             wait();
+            System.err.println("LOCK ELIBERAT!");
         }
         return message;
     }

@@ -1,17 +1,17 @@
 package network;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import utils.MessageWrapper;
+
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The dispatcher helps with multiplexing a communication channel between multiple threads.
  *
+ * todo update this
  * When a thread sends a message, it will return a Future object.
  * Internally, the dispatcher assigns a tag to the message and maps the tag to the returned future.
  * When the answer to a message is received, its tag is retrieved and the message is assigned
@@ -23,81 +23,64 @@ public class Dispatcher {
     private AtomicInteger nextTag;
     private Map<Integer, FutureMessage> futures;
     private Node correspondingNode;
+    private Map<NodeInfo, CommunicationThread> threads;
 
     public Dispatcher(Node correspondingNode) {
         this.correspondingNode = correspondingNode;
         nextTag = new AtomicInteger(0);
         futures = new ConcurrentHashMap<Integer, FutureMessage>();
+        this.threads = new ConcurrentHashMap<NodeInfo, CommunicationThread>();
     }
 
-    public Future<Message> sendMessage(Message messageToSend, int fingerTableIndex) throws ExecutionException {
-        CompleteNodeInfo neighbor = correspondingNode.getFingerTable().get(fingerTableIndex);
-        ObjectOutputStream outputStream = neighbor.getOutputStream();
-        ObjectInputStream inputStream = neighbor.getInputStream();
-
-        return sendMessage(messageToSend, outputStream, inputStream);
+    public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, int fingerTableIndex) {
+        return sendMessage(messageToSend, waitForAnswer, correspondingNode.getFingerTable().get(fingerTableIndex));
     }
 
-    public Future<Message> sendMessage(Message messageToSend, ObjectOutputStream outputStream,
-                                       final ObjectInputStream inputStream) throws ExecutionException {
+    public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, CompleteNodeInfo destination) {
         int tag = nextTag.getAndIncrement();
         FutureMessage futureMessage = new FutureMessage();
         messageToSend.setTag(tag);
 
         futures.put(tag, futureMessage);
 
-        try {
-            outputStream.writeObject(messageToSend);
-        } catch (IOException e) {
-            System.err.println("The dispatcher cannot send the message: " + messageToSend.toString());
-            futures.remove(tag);
-            e.printStackTrace();
-
-            throw new ExecutionException("The dispatcher cannot send the message!", e);
+        if (!threads.containsKey(destination.getNodeInfo())) {
+            CommunicationThread thread = new CommunicationThread(destination.getStreams(), this);
+            thread.start();
+            threads.put(destination.getNodeInfo(), thread);
         }
 
-        new Thread() {
-            @Override
-            public void run() {
-                waitForMessage(inputStream);
-            }
-        }.start();
+        CommunicationThread thread = threads.get(destination.getNodeInfo());
+
+        System.err.println((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
+        thread.sendMessage(new MessageWrapper(messageToSend, waitForAnswer));
 
         return futureMessage;
     }
 
-    public void sendMessageWithoutAnswer(Message messageToSend, int fingerTableIndex) {
-        CompleteNodeInfo neighbor = correspondingNode.getFingerTable().get(fingerTableIndex);
-        ObjectOutputStream outputStream = neighbor.getOutputStream();
+    public void receiveMessage(Message received) {
+        int tag = received.getTag();
+        FutureMessage futureMessage = futures.get(tag);
+        futures.remove(tag);
 
+        futureMessage.message = received;
+
+        System.err.println((new Date()).toString() + " " + "Am primit mesajul " + received);
         try {
-            outputStream.writeObject(messageToSend);
-        } catch (IOException e) {
-            System.err.println("The dispatcher cannot send the message: " + messageToSend.toString());
+            Thread.sleep(10);
+            int i = 0;
+            Thread.sleep(30);
+            i++;
+            Thread.sleep(400);
+            Thread.sleep(30);
+            int j = i;
+            Thread.sleep(50);
+            i = j;
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    public void waitForMessage(ObjectInputStream inputStream) {
-        Message received = null;
-        try {
-            received = (Message) inputStream.readObject();
-
-            int tag = received.getTag();
-            FutureMessage futureMessage = futures.get(tag);
-            futures.remove(tag);
-
-            futureMessage.message = received;
-
-            synchronized (futureMessage) {
-                futureMessage.notify();
-            }
-
-        } catch (IOException e) {
-            System.err.println("The dispatcher cannot read the message!");
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+        synchronized (futureMessage) {
+            futureMessage.notify();
         }
+        System.err.println((new Date()).toString() + " " +"Am livrat mesajul " + received);
     }
 }

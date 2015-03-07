@@ -1,16 +1,15 @@
 package network;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.List;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
  * This class represents a thread that refreshed the finger table for a node.
  * Every 5 seconds a new index is checked, by sending the FIND_SUCCESSOR_JOIN message with the id:
- *   currentId + 2 ^ (index - 1)
+ *   currentId + 2 ^ (index - 1), index = 1 to LOG_NODES - 1
  *
  * The message is sent to the successor of this node.
  * If the answer different from the node in the finger table, the finger table is updated.
@@ -19,7 +18,7 @@ import java.util.concurrent.Future;
  */
 public class FixFingersThread extends Thread {
     private long currentNodeId;
-    private long next;
+    private int next;
     private Node correspondingNode;
     private Dispatcher dispatcher;
 
@@ -27,7 +26,7 @@ public class FixFingersThread extends Thread {
         this.dispatcher = dispatcher;
         this.currentNodeId = currentNodeId;
         this.correspondingNode = correspondingNode;
-        next = -1;
+        next = 0;
     }
 
     @Override
@@ -35,7 +34,7 @@ public class FixFingersThread extends Thread {
         while (true) {
             next = next + 1;
             if (next >= Node.LOG_NODES) {
-                next = 0;
+                next = 1;
             }
             System.out.println(currentNodeId + ": Fixing finger: " + next);
 
@@ -44,30 +43,38 @@ public class FixFingersThread extends Thread {
                 // suppose the successor is always available if the network has more than 2 nodes
                 if (correspondingNode.getFingerTable().get(0).getStreams() != null) {
                     // fingerId = currentNodeId + 2 ^ (next - 1)
-                    long fingerId = (currentNodeId + (1 << (next))) % (Node.NUMBER_OF_NODES);
+                    long fingerId = (currentNodeId + (1 << next)) % Node.NUMBER_OF_NODES;
 
-                    Message message = new Message(MessageType.PING, fingerId);
-                    Future<Message> messageFuture = dispatcher.sendMessage(message, 0);
-
+                    Message message = new Message(MessageType.FIND_SUCCESSOR_FIX_FINGER, fingerId);
+                    Future<Message> messageFuture = dispatcher.sendMessage(message, true, 0);
                     Message received = messageFuture.get();
 
-//                    NodeInfo nodeInfo = (NodeInfo) received.getObject();
+                    NodeInfo nodeInfo = (NodeInfo) received.getObject();
 
-                    // if the finger is not the current one, change it in the finger table
-                    // check if the finger table size is smaller than the next value - get or remove throw IndexOutOfBounds
-//                    if (fingerTable.size() <= next || !fingerTable.get((int) next).getFirst().equals(nodeInfo)) {
-//
-//                        fingerTable.remove(nodeInfo);
-//                        Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
-//                        Streams streams = new Streams(socket);
-//
-//                        fingerTable.add((int) next, new Pair<NodeInfo, Streams>(nodeInfo, streams));
-//                    }
-//                    System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
+                    // check if the found finger is already present in the table
+                    if (!correspondingNode.getFingerTable().get(next).getNodeInfo().equals(nodeInfo)) {
+                        // replace the finger
+                        Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
+                        Streams streams = new Streams(socket);
+
+                        // avoid remove and add in ArrayList
+                        correspondingNode.getFingerTable().get(next).setNodeInfo(nodeInfo);
+                        correspondingNode.getFingerTable().get(next).setStreams(streams);
+                    }
+
+                    System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
                 }
             } catch (InterruptedException e) {
+                // MessageFuture.get()
                 e.printStackTrace();
             } catch (ExecutionException e) {
+                // MessageFuture.get()
+                e.printStackTrace();
+            } catch (UnknownHostException e) {
+                // new Socket()
+                e.printStackTrace();
+            } catch (IOException e) {
+                // new Socket()
                 e.printStackTrace();
             } finally {
                 // sleep even though an exception was caught
