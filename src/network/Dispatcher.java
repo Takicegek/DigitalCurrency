@@ -23,13 +23,15 @@ public class Dispatcher {
     private AtomicInteger nextTag;
     private Map<Integer, FutureMessage> futures;
     private Node correspondingNode;
-    private Map<NodeInfo, CommunicationThread> threads;
+    private Map<NodeInfo, MessageSenderThread> senderThreads;
+    private Map<NodeInfo, MessageReceiverThread> receiverThreads;
 
     public Dispatcher(Node correspondingNode) {
         this.correspondingNode = correspondingNode;
         nextTag = new AtomicInteger(0);
         futures = new ConcurrentHashMap<Integer, FutureMessage>();
-        this.threads = new ConcurrentHashMap<NodeInfo, CommunicationThread>();
+        this.senderThreads = new ConcurrentHashMap<NodeInfo, MessageSenderThread>();
+        this.receiverThreads = new ConcurrentHashMap<NodeInfo, MessageReceiverThread>();
     }
 
     public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, int fingerTableIndex) {
@@ -43,16 +45,22 @@ public class Dispatcher {
 
         futures.put(tag, futureMessage);
 
-        if (!threads.containsKey(destination.getNodeInfo())) {
-            CommunicationThread thread = new CommunicationThread(destination.getStreams(), this);
+        if (!senderThreads.containsKey(destination.getNodeInfo())) {
+            MessageSenderThread thread = new MessageSenderThread(destination.getStreams(), this);
             thread.start();
-            threads.put(destination.getNodeInfo(), thread);
+            senderThreads.put(destination.getNodeInfo(), thread);
         }
 
-        CommunicationThread thread = threads.get(destination.getNodeInfo());
+        if (!receiverThreads.containsKey(destination.getNodeInfo())) {
+            MessageReceiverThread thread = new MessageReceiverThread(destination.getInputStream(), this);
+            thread.start();
+            receiverThreads.put(destination.getNodeInfo(), thread);
+        }
+
+        MessageSenderThread senderThread = senderThreads.get(destination.getNodeInfo());
 
         System.err.println((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
-        thread.sendMessage(new MessageWrapper(messageToSend, waitForAnswer));
+        senderThread.sendMessage(new MessageWrapper(messageToSend, waitForAnswer));
 
         return futureMessage;
     }
@@ -73,6 +81,18 @@ public class Dispatcher {
             Thread.sleep(400);
             Thread.sleep(30);
             int j = i;
+            Thread.sleep(50);
+            Thread.sleep(10);
+            Thread.sleep(30);
+            i++;
+            Thread.sleep(400);
+            Thread.sleep(30);
+            Thread.sleep(50);
+            Thread.sleep(10);
+            Thread.sleep(30);
+            i++;
+            Thread.sleep(400);
+            Thread.sleep(30);
             Thread.sleep(50);
             i = j;
         } catch (InterruptedException e) {

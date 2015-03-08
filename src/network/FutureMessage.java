@@ -33,7 +33,7 @@ public class FutureMessage implements Future<Message> {
         synchronized (this) {
             System.err.println("ASTEPT ELIBERAREA!");
             wait();
-            System.err.println("LOCK ELIBERAT!");
+            System.err.println("LOCK ELIBERAT! pentru tagul " + message.getTag());
         }
         return message;
     }

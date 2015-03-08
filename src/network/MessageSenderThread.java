@@ -12,15 +12,13 @@ import java.util.concurrent.BlockingQueue;
 /**
  * Created by Sorin Nutu on 3/1/2015.
  */
-public class CommunicationThread extends Thread {
+public class MessageSenderThread extends Thread {
     private BlockingQueue<MessageWrapper> queue;
-    private ObjectInputStream inputStream;
     private ObjectOutputStream outputStream;
     private Dispatcher dispatcher;
 
-    public CommunicationThread(Streams streams, Dispatcher dispatcher) {
+    public MessageSenderThread(Streams streams, Dispatcher dispatcher) {
         this.queue = new ArrayBlockingQueue<MessageWrapper>(Node.LOG_NODES);
-        this.inputStream = streams.getObjectInputStream();
         this.outputStream = streams.getObjectOutputStream();
         this.dispatcher = dispatcher;
         Thread.currentThread().setName("Communication thread");
@@ -36,29 +34,16 @@ public class CommunicationThread extends Thread {
     public void run() {
         while (true) {
             MessageWrapper toSend;
-            Message received;
             try {
                 toSend = queue.take();
-
                 // fixed bug: writeUnshared instead of writeObject
                 outputStream.writeUnshared(toSend.getMessage());
                 outputStream.flush();
-
-
-                if (toSend.isWaitForAnswer()) {
-                    System.err.println("Am scris, astept raspuns.");
-                    received = (Message) inputStream.readObject();
-                    dispatcher.receiveMessage(received);
-                    System.err.println("Am primit raspuns, l-am trimis la dispatcher.");
-                }
-
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
                 break;
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
             }
         }
     }
