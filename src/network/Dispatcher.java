@@ -70,37 +70,9 @@ public class Dispatcher {
         FutureMessage futureMessage = futures.get(tag);
         futures.remove(tag);
 
-        futureMessage.message = received;
+        // this also releases the semaphore and permits the message to be read
+        futureMessage.setMessage(received);
 
         System.err.println((new Date()).toString() + " " + "Am primit mesajul " + received);
-        try {
-            Thread.sleep(10);
-            int i = 0;
-            Thread.sleep(30);
-            i++;
-            Thread.sleep(400);
-            Thread.sleep(30);
-            int j = i;
-            Thread.sleep(50);
-            Thread.sleep(10);
-            Thread.sleep(30);
-            i++;
-            Thread.sleep(400);
-            Thread.sleep(30);
-            Thread.sleep(50);
-            Thread.sleep(10);
-            Thread.sleep(30);
-            i++;
-            Thread.sleep(400);
-            Thread.sleep(30);
-            Thread.sleep(50);
-            i = j;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        synchronized (futureMessage) {
-            futureMessage.notify();
-        }
-        System.err.println((new Date()).toString() + " " +"Am livrat mesajul " + received);
     }
 }

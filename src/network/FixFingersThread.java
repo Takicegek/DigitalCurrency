@@ -37,6 +37,7 @@ public class FixFingersThread extends Thread {
                 next = 1;
             }
             System.out.println(currentNodeId + ": Fixing finger: " + next);
+            System.out.println(currentNodeId + ": Current value of finger: " + correspondingNode.getFingerTable().get(next).getNodeInfo());
 
             try {
                 // prepare the streams to send the message to the successor
@@ -51,8 +52,13 @@ public class FixFingersThread extends Thread {
 
                     NodeInfo nodeInfo = (NodeInfo) received.getObject();
 
+                    System.out.println("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
+
                     // check if the found finger is already present in the table
                     if (!correspondingNode.getFingerTable().get(next).getNodeInfo().equals(nodeInfo)) {
+
+                        System.out.println(correspondingNode.getFingerTable().get(next).getNodeInfo().toString() + " nu e egal cu " + nodeInfo.toString());
+
                         // replace the finger
                         Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
                         Streams streams = new Streams(socket);
@@ -60,6 +66,8 @@ public class FixFingersThread extends Thread {
                         // avoid remove and add in ArrayList
                         correspondingNode.getFingerTable().get(next).setNodeInfo(nodeInfo);
                         correspondingNode.getFingerTable().get(next).setStreams(streams);
+
+                        System.out.println("Connexion created with " + nodeInfo.getKey() + ". Finger = " + correspondingNode.getFingerTable().get(next).getNodeInfo().toString());
                     }
 
                     System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");

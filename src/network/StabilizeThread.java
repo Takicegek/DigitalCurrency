@@ -96,8 +96,8 @@ public class StabilizeThread extends Thread {
                     CompleteNodeInfo successor = new CompleteNodeInfo(receivedNode, streams);
                     correspondingNode.setSuccessor(successor);
 
-                    correspondingNode.getFingerTable().remove(0);
-                    correspondingNode.getFingerTable().add(0, successor);
+                    correspondingNode.getFingerTable().get(0).setNodeInfo(receivedNode);
+                    correspondingNode.getFingerTable().get(0).setStreams(streams);
 
                     System.out.println((new Date()).toString() + " " +id + ": I have a new successor! It is " + receivedNode.toString());
                 }

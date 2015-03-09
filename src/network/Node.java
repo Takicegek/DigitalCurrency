@@ -26,7 +26,7 @@ public class Node {
     private long id;
     private int port;
     private String ip;
-    private List<CompleteNodeInfo> fingerTable;
+    private volatile List<CompleteNodeInfo> fingerTable;
     // the successor list is required to handle node failures
     private List<Integer> bootstrapNodes;
     private ServerSocket serverSocket;
@@ -85,7 +85,7 @@ public class Node {
         new StabilizeThread(this, dispatcher).start();
 
         // create a separate thread that will fix the fingers
-        new FixFingersThread(dispatcher, id, this).start();
+//        new FixFingersThread(dispatcher, id, this).start();
     }
 
 
@@ -143,7 +143,7 @@ public class Node {
             Socket client;
             try {
                 client = serverSocket.accept();
-                System.out.println("PORNESC UN LISTENER . . .");
+                System.out.println("PORNESC UN LISTENER PENTRU " + client.getRemoteSocketAddress().toString());
                 dealWithClient(client);
             } catch (IOException e) {
                 e.printStackTrace();
