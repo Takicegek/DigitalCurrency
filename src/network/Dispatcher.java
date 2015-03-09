@@ -60,19 +60,19 @@ public class Dispatcher {
         MessageSenderThread senderThread = senderThreads.get(destination.getNodeInfo());
 
         System.err.println((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
-        senderThread.sendMessage(new MessageWrapper(messageToSend, waitForAnswer));
+        senderThread.sendMessage(messageToSend);
 
         return futureMessage;
     }
 
-    public void receiveMessage(Message received) {
+    public synchronized void receiveMessage(Message received) {
         int tag = received.getTag();
         FutureMessage futureMessage = futures.get(tag);
         futures.remove(tag);
 
+        System.err.println((new Date()).toString() + " " + "Am primit mesajul " + received);
+
         // this also releases the semaphore and permits the message to be read
         futureMessage.setMessage(received);
-
-        System.err.println((new Date()).toString() + " " + "Am primit mesajul " + received);
     }
 }

@@ -93,14 +93,6 @@ public class SocketListenerMessageHandlingThread extends Thread {
         NodeInfo nodeInfo = (NodeInfo) message.getObject();
         System.out.println((new Date()).toString() + " " + "My predecessor is " + nodeInfo.toString());
         if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().getNodeInfo().equals(nodeInfo)) {
-            // the current node has a new predecessor so save it
-//            Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
-
-            // bugfix: do not close the socket, other messages may still come and the predecessor must be informed
-            // close the current socket for the predecessor
-//            if (correspondingNode.getPredecessor() != null && correspondingNode.getPredecessor().getStreams() != null) {
-//                correspondingNode.getPredecessor().closeSocket();
-//            }
             correspondingNode.setPredecessor(new CompleteNodeInfo(nodeInfo, null));
 
             System.out.println((new Date()).toString() + " " +correspondingNode.getId() + ": I have a new predecessor. It is " + nodeInfo.toString());
@@ -129,8 +121,7 @@ public class SocketListenerMessageHandlingThread extends Thread {
             // forward the message and retrieve it from the Future object
             // this is not a response, it is a message for a node to which this node may send messages
             // from other threads, so use the dispatcher
-            Future<Message> messageFuture = null;
-            messageFuture = dispatcher.sendMessage(message, true, closestPreceding);
+            Future<Message> messageFuture = dispatcher.sendMessage(message, true, closestPreceding);
             try {
                 answer = messageFuture.get();
             } catch (InterruptedException e) {
@@ -145,7 +136,6 @@ public class SocketListenerMessageHandlingThread extends Thread {
 
         writer.writeObject(answer);
         writer.flush();
-
     }
 
     private int closestPrecedingNode(long key) {

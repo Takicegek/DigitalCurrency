@@ -9,7 +9,5 @@ public class Main {
 //                            10 - 14 - 21  26 - 30 -
 //        new Node("localhost", 10001);
 
-
-        // SE APELEAZA NOTIFY INAINTE DE WAIT 1!!!!!!!!!!!!!!!!1!!!!!!!!!!1!!!!!!!!!!
     }
 }

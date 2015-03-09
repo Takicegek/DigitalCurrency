@@ -13,15 +13,14 @@ import java.util.concurrent.BlockingQueue;
  * Created by Sorin Nutu on 3/1/2015.
  */
 public class MessageSenderThread extends Thread {
-    private BlockingQueue<MessageWrapper> queue;
+    private BlockingQueue<Message> queue;
     private ObjectOutputStream outputStream;
     private Dispatcher dispatcher;
 
     public MessageSenderThread(Streams streams, Dispatcher dispatcher) {
-        this.queue = new ArrayBlockingQueue<MessageWrapper>(Node.LOG_NODES);
+        this.queue = new ArrayBlockingQueue<Message>(Node.LOG_NODES);
         this.outputStream = streams.getObjectOutputStream();
         this.dispatcher = dispatcher;
-        Thread.currentThread().setName("Communication thread");
         try {
             // a read call on the input stream will block for only 5 seconds
             streams.setSoTimeout(55000);
@@ -33,11 +32,10 @@ public class MessageSenderThread extends Thread {
     @Override
     public void run() {
         while (true) {
-            MessageWrapper toSend;
             try {
-                toSend = queue.take();
+                Message toSend = queue.take();
                 // fixed bug: writeUnshared instead of writeObject
-                outputStream.writeUnshared(toSend.getMessage());
+                outputStream.writeUnshared(toSend);
                 outputStream.flush();
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -48,7 +46,7 @@ public class MessageSenderThread extends Thread {
         }
     }
 
-    public void sendMessage(MessageWrapper message) {
+    public void sendMessage(Message message) {
         try {
             queue.put(message);
         } catch (InterruptedException e) {

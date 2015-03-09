@@ -26,7 +26,7 @@ public class Node {
     private long id;
     private int port;
     private String ip;
-    private volatile List<CompleteNodeInfo> fingerTable;
+    private List<CompleteNodeInfo> fingerTable;
     // the successor list is required to handle node failures
     private List<Integer> bootstrapNodes;
     private ServerSocket serverSocket;
@@ -67,9 +67,10 @@ public class Node {
             }
         }
 
+        fingerTable.add(successor);
         // fill the fingertable
-        for (int i = 0; i < LOG_NODES; i++) {
-            fingerTable.add(successor);
+        for (int i = 1; i < LOG_NODES; i++) {
+            fingerTable.add(new CompleteNodeInfo(new NodeInfo("localhost", -1, -1), null));
         }
 
         // run the SocketListener in a separate thread to handle incoming messages
@@ -85,7 +86,7 @@ public class Node {
         new StabilizeThread(this, dispatcher).start();
 
         // create a separate thread that will fix the fingers
-//        new FixFingersThread(dispatcher, id, this).start();
+        new FixFingersThread(dispatcher, id, this).start();
     }
 
 

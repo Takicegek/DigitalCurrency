@@ -21,9 +21,8 @@ public class MessageReceiverThread extends Thread {
         Object receivedObject;
         try {
             while ((receivedObject = inputStream.readObject()) != null) {
-                Message receviedMessage = null;
                 if (receivedObject instanceof Message) {
-                    receviedMessage = (Message) receivedObject;
+                    Message receviedMessage = (Message) receivedObject;
                     dispatcher.receiveMessage(receviedMessage);
                 } else {
                     System.err.println("Received an object that is not a message: " + receivedObject.toString());
