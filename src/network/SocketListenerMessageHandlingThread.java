@@ -14,15 +14,13 @@ public class SocketListenerMessageHandlingThread extends Thread {
 
     private Message message;
     private Node correspondingNode;
-    private ObjectInputStream reader;
     private ObjectOutputStream writer;
     private Dispatcher dispatcher;
 
-    public SocketListenerMessageHandlingThread(Message message, Node correspondingNode, ObjectInputStream reader,
+    public SocketListenerMessageHandlingThread(Message message, Node correspondingNode,
                                                ObjectOutputStream writer, Dispatcher dispatcher) {
         this.message = message;
         this.correspondingNode = correspondingNode;
-        this.reader = reader;
         this.writer = writer;
         this.dispatcher = dispatcher;
     }
@@ -36,8 +34,7 @@ public class SocketListenerMessageHandlingThread extends Thread {
                 // if a node with that id already exists, send back a USED_ID message
                 if (id == correspondingNode.getId() || id == correspondingNode.getSuccessor().getKey()) {
                     Message answer = new Message(MessageType.SUCCESSOR_FOUND, null, message.getTag());
-                    writer.writeObject(answer);
-                    writer.flush();
+                    writeAnswer(answer);
                 } else {
                     handleFindSuccessor(message);
                 }
@@ -51,11 +48,11 @@ public class SocketListenerMessageHandlingThread extends Thread {
                 // this does not mean that a new node with the same id joined but a node is fixing its finger table
                 if (id == correspondingNode.getId()) {
                     Message answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getNodeInfo(), tag);
-                    writer.writeObject(answer);
+                    writeAnswer(answer);
                 } else {
                     if (id == correspondingNode.getSuccessor().getKey()) {
-                        Message answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor().getNodeInfo(), tag);
-                        writer.writeObject(answer);
+                        Message answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor(), tag);
+                        writeAnswer(answer);
                     } else {
                         handleFindSuccessor(message);
                     }
@@ -66,11 +63,10 @@ public class SocketListenerMessageHandlingThread extends Thread {
             if (message.getType() == MessageType.GET_PREDECESSOR) {
                 int tag = message.getTag();
                 if (correspondingNode.getPredecessor() != null) {
-                    writer.writeObject(new Message(MessageType.SEND_PREDECESSOR, correspondingNode.getPredecessor().getNodeInfo(), tag));
+                    writeAnswer(new Message(MessageType.SEND_PREDECESSOR, correspondingNode.getPredecessor(), tag));
                 } else {
-                    writer.writeObject(new Message(MessageType.SEND_PREDECESSOR, null, tag));
+                    writeAnswer(new Message(MessageType.SEND_PREDECESSOR, null, tag));
                 }
-                writer.flush();
             }
 
             // message from predecessor
@@ -79,8 +75,7 @@ public class SocketListenerMessageHandlingThread extends Thread {
             }
 
             if (message.getType() == MessageType.PING) {
-                writer.writeObject(new Message(MessageType.PING, null, message.getTag()));
-                writer.flush();
+                writeAnswer(new Message(MessageType.PING, null, message.getTag()));
             }
         } catch (IOException e) {
             System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket.");
@@ -92,8 +87,8 @@ public class SocketListenerMessageHandlingThread extends Thread {
     private void handleNotifySuccessor(Message message) throws IOException {
         NodeInfo nodeInfo = (NodeInfo) message.getObject();
         System.out.println((new Date()).toString() + " " + "My predecessor is " + nodeInfo.toString());
-        if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().getNodeInfo().equals(nodeInfo)) {
-            correspondingNode.setPredecessor(new CompleteNodeInfo(nodeInfo, null));
+        if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().equals(nodeInfo)) {
+            correspondingNode.setPredecessor(nodeInfo);
 
             System.out.println((new Date()).toString() + " " +correspondingNode.getId() + ": I have a new predecessor. It is " + nodeInfo.toString());
         }
@@ -107,16 +102,16 @@ public class SocketListenerMessageHandlingThread extends Thread {
 
         if (SocketListener.belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
             // the node is between this one and its successor, send the successor id
-            answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor().getNodeInfo());
+            answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor());
             System.out.println((new Date()).toString() + " " +id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
-            System.out.println((new Date()).toString() + " " + "Its successor will be " + correspondingNode.getSuccessor().getNodeInfo());
+            System.out.println((new Date()).toString() + " " + "Its successor will be " + correspondingNode.getSuccessor());
         } else {
             System.out.println((new Date()).toString() + " " +id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
 
             // find the closest preceding node
             int closestPreceding = closestPrecedingNode(id);
             System.out.println((new Date()).toString() + " " +"Send the request further to " +
-                    correspondingNode.getFingerTable().get(closestPreceding).getNodeInfo());
+                    correspondingNode.getFingerTable().get(closestPreceding));
 
             // forward the message and retrieve it from the Future object
             // this is not a response, it is a message for a node to which this node may send messages
@@ -134,8 +129,7 @@ public class SocketListenerMessageHandlingThread extends Thread {
         // put back the tag
         answer.setTag(tag);
 
-        writer.writeObject(answer);
-        writer.flush();
+        writeAnswer(answer);
     }
 
     private int closestPrecedingNode(long key) {
@@ -147,5 +141,16 @@ public class SocketListenerMessageHandlingThread extends Thread {
             }
         }*/
         return 0; // the successor
+    }
+
+    private void writeAnswer(Message message) {
+        synchronized (writer) {
+            try {
+                writer.writeUnshared(message);
+            } catch (IOException e) {
+                System.err.println("Could not send the answer back!");
+                e.printStackTrace();
+            }
+        }
     }
 }

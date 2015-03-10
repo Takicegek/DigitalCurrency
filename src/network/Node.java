@@ -26,13 +26,13 @@ public class Node {
     private long id;
     private int port;
     private String ip;
-    private List<CompleteNodeInfo> fingerTable;
+    private List<NodeInfo> fingerTable;
     // the successor list is required to handle node failures
     private List<Integer> bootstrapNodes;
     private ServerSocket serverSocket;
 
-    private CompleteNodeInfo predecessor;
-    private CompleteNodeInfo successor;
+    private NodeInfo predecessor;
+    private NodeInfo successor;
 
     private Dispatcher dispatcher;
 
@@ -41,7 +41,7 @@ public class Node {
         bootstrapNodes = new ArrayList<Integer>();
         bootstrapNodes.add(10000);
 
-        fingerTable = new ArrayList<CompleteNodeInfo>(LOG_NODES);
+        fingerTable = new ArrayList<NodeInfo>(LOG_NODES);
         dispatcher = new Dispatcher(this);
 
         // the identifier for this node in the ring
@@ -51,26 +51,18 @@ public class Node {
         this.port = port;
 
         if (bootstrapNodes.contains(port)) {
-            successor = new CompleteNodeInfo(new NodeInfo(ip, port, id), null);
+            successor = new NodeInfo(ip, port, id);
         } else {
-            try {
-                successor = new CompleteNodeInfo();
+            successor = findSuccessor(ip, 10000);
+            System.out.println(id + ": My successor is " + successor.getKey());
 
-                NodeInfo info = findSuccessor(ip, 10000);
-                successor.setNodeInfo(info);
-                Socket successorSocket = new Socket(info.getIp(), info.getPort());
-                successor.setStreams(new Streams(successorSocket));
-
-                System.out.println(id + ": My successor is " + successor.getKey());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            dispatcher.sendMessage(new Message(MessageType.NOTIFY_SUCCESSOR, getNodeInfo()), false, successor);
         }
 
         fingerTable.add(successor);
         // fill the fingertable
         for (int i = 1; i < LOG_NODES; i++) {
-            fingerTable.add(new CompleteNodeInfo(new NodeInfo("localhost", -1, -1), null));
+            fingerTable.add(new NodeInfo("localhost", -1, -1));
         }
 
         // run the SocketListener in a separate thread to handle incoming messages
@@ -94,18 +86,16 @@ public class Node {
     private NodeInfo findSuccessor(String ip, int port) {
         NodeInfo nodeInfo = null;
         try {
-            Socket s = new Socket(ip, port);
             boolean collision;
             Message message = new Message(MessageType.FIND_SUCCESSOR_JOIN, id);
             NodeInfo info = new NodeInfo(ip, port, -1);
-            Streams streams = new Streams(s);
 
             // loop until an id that is not already present in the ring is found
             do {
                 collision = false;
 
                 System.out.println(message);
-                Future<Message> messageFuture = dispatcher.sendMessage(message, true, new CompleteNodeInfo(info, streams));
+                Future<Message> messageFuture = dispatcher.sendMessage(message, true, info);
                 Message received = messageFuture.get();
 
                 if (received.getObject() != null) {
@@ -119,9 +109,6 @@ public class Node {
                 }
             } while (collision == true);
 
-            s.close();
-        } catch(IOException e) {
-            e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
@@ -160,23 +147,23 @@ public class Node {
         return id;
     }
 
-    public CompleteNodeInfo getSuccessor() {
+    public NodeInfo getSuccessor() {
         return successor;
     }
 
-    public CompleteNodeInfo getPredecessor() {
+    public NodeInfo getPredecessor() {
         return predecessor;
     }
 
-    public void setPredecessor(CompleteNodeInfo predecessor) {
+    public void setPredecessor(NodeInfo predecessor) {
         this.predecessor = predecessor;
     }
 
-    public void setSuccessor(CompleteNodeInfo successor) {
+    public void setSuccessor(NodeInfo successor) {
         this.successor = successor;
     }
 
-    public List<CompleteNodeInfo> getFingerTable() {
+    public List<NodeInfo> getFingerTable() {
         return fingerTable;
     }
 

@@ -1,7 +1,8 @@
 package network;
 
-import utils.MessageWrapper;
-
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,40 +25,45 @@ public class Dispatcher {
     private Map<Integer, FutureMessage> futures;
     private Node correspondingNode;
     private Map<NodeInfo, MessageSenderThread> senderThreads;
-    private Map<NodeInfo, MessageReceiverThread> receiverThreads;
 
     public Dispatcher(Node correspondingNode) {
         this.correspondingNode = correspondingNode;
         nextTag = new AtomicInteger(0);
         futures = new ConcurrentHashMap<Integer, FutureMessage>();
         this.senderThreads = new ConcurrentHashMap<NodeInfo, MessageSenderThread>();
-        this.receiverThreads = new ConcurrentHashMap<NodeInfo, MessageReceiverThread>();
     }
 
     public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, int fingerTableIndex) {
         return sendMessage(messageToSend, waitForAnswer, correspondingNode.getFingerTable().get(fingerTableIndex));
     }
 
-    public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, CompleteNodeInfo destination) {
+    public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, NodeInfo destination) {
         int tag = nextTag.getAndIncrement();
         FutureMessage futureMessage = new FutureMessage();
         messageToSend.setTag(tag);
 
         futures.put(tag, futureMessage);
 
-        if (!senderThreads.containsKey(destination.getNodeInfo())) {
-            MessageSenderThread thread = new MessageSenderThread(destination.getStreams(), this);
-            thread.start();
-            senderThreads.put(destination.getNodeInfo(), thread);
+        if (!senderThreads.containsKey(destination)) {
+            try {
+                Socket socket = new Socket(destination.getIp(), destination.getPort());
+                Streams streams = new Streams(socket);
+
+                MessageSenderThread senderThread = new MessageSenderThread(streams, this);
+                senderThread.start();
+
+                MessageReceiverThread receiverThread = new MessageReceiverThread(streams.getObjectInputStream(), this);
+                receiverThread.start();
+
+                senderThreads.put(destination, senderThread);
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
-        if (!receiverThreads.containsKey(destination.getNodeInfo())) {
-            MessageReceiverThread thread = new MessageReceiverThread(destination.getInputStream(), this);
-            thread.start();
-            receiverThreads.put(destination.getNodeInfo(), thread);
-        }
-
-        MessageSenderThread senderThread = senderThreads.get(destination.getNodeInfo());
+        MessageSenderThread senderThread = senderThreads.get(destination);
 
         System.err.println((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
         senderThread.sendMessage(messageToSend);

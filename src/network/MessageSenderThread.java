@@ -21,12 +21,6 @@ public class MessageSenderThread extends Thread {
         this.queue = new ArrayBlockingQueue<Message>(Node.LOG_NODES);
         this.outputStream = streams.getObjectOutputStream();
         this.dispatcher = dispatcher;
-        try {
-            // a read call on the input stream will block for only 5 seconds
-            streams.setSoTimeout(55000);
-        } catch (SocketException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override

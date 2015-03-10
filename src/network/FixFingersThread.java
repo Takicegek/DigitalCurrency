@@ -37,12 +37,12 @@ public class FixFingersThread extends Thread {
                 next = 1;
             }
             System.out.println(currentNodeId + ": Fixing finger: " + next);
-            System.out.println(currentNodeId + ": Current value of finger: " + correspondingNode.getFingerTable().get(next).getNodeInfo());
+            System.out.println(currentNodeId + ": Current value of finger: " + correspondingNode.getFingerTable().get(next));
 
             try {
                 // prepare the streams to send the message to the successor
                 // suppose the successor is always available if the network has more than 2 nodes
-                if (correspondingNode.getFingerTable().get(0).getStreams() != null) {
+                if (!correspondingNode.getFingerTable().get(0).equals(correspondingNode.getNodeInfo())) {
                     // fingerId = currentNodeId + 2 ^ (next - 1)
                     long fingerId = (currentNodeId + (1 << next)) % Node.NUMBER_OF_NODES;
 
@@ -55,19 +55,15 @@ public class FixFingersThread extends Thread {
                     System.out.println("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
 
                     // check if the found finger is already present in the table
-                    if (!correspondingNode.getFingerTable().get(next).getNodeInfo().equals(nodeInfo)) {
+                    if (!correspondingNode.getFingerTable().get(next).equals(nodeInfo)) {
 
-                        System.out.println(correspondingNode.getFingerTable().get(next).getNodeInfo().toString() + " nu e egal cu " + nodeInfo.toString());
+                        System.out.println(correspondingNode.getFingerTable().get(next).toString() + " nu e egal cu " + nodeInfo.toString());
 
                         // replace the finger
-                        Socket socket = new Socket(nodeInfo.getIp(), nodeInfo.getPort());
-                        Streams streams = new Streams(socket);
+                        correspondingNode.getFingerTable().remove(next);
+                        correspondingNode.getFingerTable().add(next, nodeInfo);
 
-                        // avoid remove and add in ArrayList
-                        correspondingNode.getFingerTable().get(next).setNodeInfo(nodeInfo);
-                        correspondingNode.getFingerTable().get(next).setStreams(streams);
-
-                        System.out.println("Connexion created with " + nodeInfo.getKey() + ". Finger = " + correspondingNode.getFingerTable().get(next).getNodeInfo().toString());
+                        System.out.println("Finger " + next + " == " + nodeInfo);
                     }
 
                     System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
@@ -77,12 +73,6 @@ public class FixFingersThread extends Thread {
                 e.printStackTrace();
             } catch (ExecutionException e) {
                 // MessageFuture.get()
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                // new Socket()
-                e.printStackTrace();
-            } catch (IOException e) {
-                // new Socket()
                 e.printStackTrace();
             } finally {
                 // sleep even though an exception was caught

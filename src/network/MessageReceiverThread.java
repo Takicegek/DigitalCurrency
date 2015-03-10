@@ -29,6 +29,7 @@ public class MessageReceiverThread extends Thread {
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
             System.out.println("Socket inchis in MessageReceverThread.");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

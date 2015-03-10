@@ -41,7 +41,7 @@ public class SocketListener implements Runnable {
                 // handle the message in a separate thread, so the caller should not wait until the current
                 // message is entirely processed
                 SocketListenerMessageHandlingThread thread = new SocketListenerMessageHandlingThread(message,
-                        correspondingNode, reader, writer, dispatcher);
+                        correspondingNode, writer, dispatcher);
                 thread.start();
             }
         } catch (IOException e) {

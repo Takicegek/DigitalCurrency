@@ -23,7 +23,6 @@ public class StabilizeThread extends Thread {
         this.id = correspondingNode.getId();
         this.port = correspondingNode.getPort();
         this.dispatcher = dispatcher;
-        Thread.currentThread().setName("Stabilize thread");
     }
 
     @Override
@@ -77,7 +76,7 @@ public class StabilizeThread extends Thread {
 
                 // we know that the object inside the message is a NodeInfo
                 NodeInfo receivedNode = (NodeInfo) received.getObject();
-                System.out.println((new Date()).toString() + " " +"Asked my successor " + correspondingNode.getSuccessor().getNodeInfo() + " about its predecessor and the answer is: " + receivedNode);
+                System.out.println((new Date()).toString() + " " +"Asked my successor " + correspondingNode.getSuccessor() + " about its predecessor and the answer is: " + receivedNode);
 
                 // if my successor has a predecessor different by me, there are two cases
                 // 1. I just joined and my successor does not know about me
@@ -87,17 +86,11 @@ public class StabilizeThread extends Thread {
                         SocketListener.belongsToInterval(receivedNode.getKey(), id, correspondingNode.getSuccessor().getKey())) {
 
                     // the predecessor received from my successor is in front of me, so it becomes my successor
-                    Socket socket = new Socket(receivedNode.getIp(), receivedNode.getPort());
-                    Streams streams = new Streams(socket);
+                    correspondingNode.setSuccessor(receivedNode);
 
-                    // close the old socket
-//                    correspondingNode.getSuccessor().closeSocket();
-
-                    CompleteNodeInfo successor = new CompleteNodeInfo(receivedNode, streams);
-                    correspondingNode.setSuccessor(successor);
-
-                    correspondingNode.getFingerTable().get(0).setNodeInfo(receivedNode);
-                    correspondingNode.getFingerTable().get(0).setStreams(streams);
+                    // update the finger table
+                    correspondingNode.getFingerTable().remove(0);
+                    correspondingNode.getFingerTable().add(0, receivedNode);
 
                     System.out.println((new Date()).toString() + " " +id + ": I have a new successor! It is " + receivedNode.toString());
                 }
@@ -110,7 +103,6 @@ public class StabilizeThread extends Thread {
         }
     }
 
-
     /**
      * The stabilize() method sends a message through a Socket to the successor. When the network has only one node,
      * it cannot send messages to itself. This method implements the same behaviour as stabilize(), but it does not
@@ -118,7 +110,7 @@ public class StabilizeThread extends Thread {
      */
     private void stabilizeFirstNodeInRing() {
         if (correspondingNode.getPredecessor() == null) {
-            correspondingNode.setPredecessor(new CompleteNodeInfo(new NodeInfo(correspondingNode.getIp(), port, id), null));
+            correspondingNode.setPredecessor(new NodeInfo(correspondingNode.getIp(), port, id));
             System.out.println((new Date()).toString() + " " +"Stabilized the first node in ring.");
         } else {
             // if another node joined and it has this node as its successor, it notifies and the current
@@ -126,14 +118,9 @@ public class StabilizeThread extends Thread {
             if (correspondingNode.getPredecessor().getKey() != id && correspondingNode.getPredecessor().getPort() != port) {
                 // another node joined and it is between the current node and its successor
                 // set that node as a successor
-                correspondingNode.getSuccessor().setNodeInfo(correspondingNode.getPredecessor().getNodeInfo());
-                Socket socket = null;
-                try {
-                    socket = new Socket(correspondingNode.getSuccessor().getIp(), correspondingNode.getSuccessor().getPort());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                correspondingNode.getSuccessor().setStreams(new Streams(socket));
+                correspondingNode.setSuccessor(correspondingNode.getPredecessor());
+                correspondingNode.getFingerTable().remove(0);
+                correspondingNode.getFingerTable().add(0, correspondingNode.getSuccessor());
             }
         }
     }
