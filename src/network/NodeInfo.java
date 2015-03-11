@@ -35,6 +35,7 @@ public class NodeInfo implements Serializable {
                 '}';
     }
 
+    // do not compare the keys; do not construct a thread in dispatcher for the initial message to the bootstrap node
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -42,7 +43,6 @@ public class NodeInfo implements Serializable {
 
         NodeInfo nodeInfo = (NodeInfo) o;
 
-        if (key != nodeInfo.key) return false;
         if (port != nodeInfo.port) return false;
         if (!ip.equals(nodeInfo.ip)) return false;
 
@@ -53,7 +53,6 @@ public class NodeInfo implements Serializable {
     public int hashCode() {
         int result = ip.hashCode();
         result = 31 * result + port;
-        result = 31 * result + (int) (key ^ (key >>> 32));
         return result;
     }
 }

@@ -5,8 +5,7 @@ import utils.NodeGUI;
 import java.io.*;
 import java.net.Socket;
 import java.util.Date;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 /**
  * Created by Sorin Nutu on 2/17/2015.
@@ -18,6 +17,7 @@ public class SocketListener implements Runnable {
     private ObjectOutputStream writer;
     private Node correspondingNode;
     private Dispatcher dispatcher;
+    ThreadPoolExecutor executor;
 
     public SocketListener(Socket client, Node correspondingNode, Dispatcher dispatcher) {
         this.client = client;
@@ -29,6 +29,9 @@ public class SocketListener implements Runnable {
             e.printStackTrace();
         }
         this.dispatcher = dispatcher;
+
+        // use a unbounded queue because all the messages should be processed
+        executor = new ThreadPoolExecutor(1, 5, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
     }
 
     @Override
@@ -42,7 +45,8 @@ public class SocketListener implements Runnable {
                 // message is entirely processed
                 SocketListenerMessageHandlingThread thread = new SocketListenerMessageHandlingThread(message,
                         correspondingNode, writer, dispatcher);
-                thread.start();
+                executor.execute(thread);
+
             }
         } catch (IOException e) {
             System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket." + client.getPort() + " " + client.getLocalPort());
