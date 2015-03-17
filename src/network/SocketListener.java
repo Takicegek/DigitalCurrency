@@ -1,7 +1,5 @@
 package network;
 
-import utils.NodeGUI;
-
 import java.io.*;
 import java.net.Socket;
 import java.util.Date;
@@ -31,7 +29,7 @@ public class SocketListener implements Runnable {
         this.dispatcher = dispatcher;
 
         // use a unbounded queue because all the messages should be processed
-        executor = new ThreadPoolExecutor(1, 5, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+        executor = new ThreadPoolExecutor(1, Integer.MAX_VALUE, 10L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
     }
 
     @Override
@@ -40,6 +38,8 @@ public class SocketListener implements Runnable {
         try {
             while((messageObject = reader.readObject()) != null) {
                 Message message = (Message) messageObject;
+
+                System.err.println("Am primit in SocketListener:" + message);
 
                 // handle the message in a separate thread, so the caller should not wait until the current
                 // message is entirely processed

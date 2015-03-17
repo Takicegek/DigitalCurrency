@@ -3,8 +3,7 @@ package network;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Date;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,12 +24,19 @@ public class Dispatcher {
     private Map<Integer, FutureMessage> futures;
     private Node correspondingNode;
     private Map<NodeInfo, MessageSenderThread> senderThreads;
+    /*
+        Store the messages that wait for an answer. When the connection with a NodeInfo is closed,
+        remove all the messages that are waiting from the futures map, set their state to RETRY and
+        release them.
+     */
+    private Map<NodeInfo, Collection<Integer>> messagesWaitingForAnswer;
 
     public Dispatcher(Node correspondingNode) {
         this.correspondingNode = correspondingNode;
         nextTag = new AtomicInteger(0);
         futures = new ConcurrentHashMap<Integer, FutureMessage>();
-        this.senderThreads = new ConcurrentHashMap<NodeInfo, MessageSenderThread>();
+        senderThreads = new ConcurrentHashMap<NodeInfo, MessageSenderThread>();
+        messagesWaitingForAnswer = new HashMap<NodeInfo, Collection<Integer>>();
     }
 
     public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, int fingerTableIndex) {
@@ -38,21 +44,34 @@ public class Dispatcher {
     }
 
     public synchronized Future<Message> sendMessage(Message messageToSend, boolean waitForAnswer, NodeInfo destination) {
-        int tag = nextTag.getAndIncrement();
-        FutureMessage futureMessage = new FutureMessage();
-        messageToSend.setTag(tag);
+        int tag;
+        FutureMessage futureMessage = null;
 
-        futures.put(tag, futureMessage);
+        // do not create a tag and a future if an answer is not required
+        if (MessageType.waitForAnswer(messageToSend.getType())) {
+            tag = nextTag.getAndIncrement();
+            futureMessage = new FutureMessage();
+            messageToSend.setTag(tag);
+            futures.put(tag, futureMessage);
+
+            if (messagesWaitingForAnswer.containsKey(destination)) {
+                messagesWaitingForAnswer.get(destination).add(tag);
+            } else {
+                Collection<Integer> tags = new ArrayList<Integer>();
+                tags.add(tag);
+                messagesWaitingForAnswer.put(destination, tags);
+            }
+        }
 
         if (!senderThreads.containsKey(destination)) {
             try {
                 Socket socket = new Socket(destination.getIp(), destination.getPort());
                 Streams streams = new Streams(socket);
 
-                MessageSenderThread senderThread = new MessageSenderThread(streams, this);
+                MessageSenderThread senderThread = new MessageSenderThread(streams, this, destination);
                 senderThread.start();
 
-                MessageReceiverThread receiverThread = new MessageReceiverThread(streams.getObjectInputStream(), this);
+                MessageReceiverThread receiverThread = new MessageReceiverThread(streams.getObjectInputStream(), this, destination);
                 receiverThread.start();
 
                 senderThreads.put(destination, senderThread);
@@ -71,7 +90,7 @@ public class Dispatcher {
         return futureMessage;
     }
 
-    public synchronized void receiveMessage(Message received) {
+    public synchronized void receiveMessage(Message received, NodeInfo source) {
         int tag = received.getTag();
         FutureMessage futureMessage = futures.get(tag);
         futures.remove(tag);
@@ -80,5 +99,52 @@ public class Dispatcher {
 
         // this also releases the semaphore and permits the message to be read
         futureMessage.setMessage(received);
+        removeMessageFromWaitingMap(received, source);
+    }
+
+    /**
+     * Method called when a message cannot be sent.
+     * @param message the message that was not delivered
+     */
+    public synchronized void handleMessageFailure(Message message, NodeInfo destination) {
+        int tag = message.getTag();
+        FutureMessage futureMessage = futures.get(tag);
+        futures.remove(tag);
+
+        System.err.println((new Date()).toString() + " " + "The message could not be sent: " + message.getObject());
+
+        message.setType(MessageType.RETRY);
+        futureMessage.setMessage(message);
+
+        removeMessageFromWaitingMap(message, destination);
+    }
+
+    private void removeMessageFromWaitingMap(Message message, NodeInfo nodeInfo) {
+        int tag = message.getTag();
+        Iterator<Integer> iterator = messagesWaitingForAnswer.get(nodeInfo).iterator();
+        while (iterator.hasNext()) {
+            int messageTag = iterator.next();
+            if (messageTag == tag) {
+                iterator.remove();
+                break;
+            }
+        }
+    }
+
+    /**
+     * Change the state of all the waiting messages to RETRY and release their futures.
+     */
+    public synchronized void handleConnectionError(NodeInfo nodeInfo) {
+        Message message = new Message(MessageType.RETRY, null);
+        Iterator<Integer> iterator = messagesWaitingForAnswer.get(nodeInfo).iterator();
+        while (iterator.hasNext()) {
+            int tag = iterator.next();
+            FutureMessage futureMessage = futures.get(tag);
+            futures.remove(tag);
+
+            futureMessage.setMessage(message);
+            iterator.remove();
+        }
+        messagesWaitingForAnswer.remove(nodeInfo);
     }
 }

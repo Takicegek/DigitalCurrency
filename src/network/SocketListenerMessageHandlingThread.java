@@ -10,7 +10,7 @@ import java.util.concurrent.Future;
 /**
  * Created by Sorin Nutu on 3/8/2015.
  */
-public class SocketListenerMessageHandlingThread extends Thread {
+public class SocketListenerMessageHandlingThread implements Runnable {
 
     private Message message;
     private Node correspondingNode;
@@ -27,6 +27,7 @@ public class SocketListenerMessageHandlingThread extends Thread {
 
     @Override
     public void run() {
+        System.err.println("SocketListenerMessageHandlingThread: Assigned the message to a handling thread - " + message);
         try {
             if (message.getType() == MessageType.FIND_SUCCESSOR_JOIN) {
                 long id = (Long) message.getObject();
@@ -74,9 +75,6 @@ public class SocketListenerMessageHandlingThread extends Thread {
                 handleNotifySuccessor(message);
             }
 
-            if (message.getType() == MessageType.PING) {
-                writeAnswer(new Message(MessageType.PING, null, message.getTag()));
-            }
         } catch (IOException e) {
             System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket.");
         } catch (ClassNotFoundException e) {
