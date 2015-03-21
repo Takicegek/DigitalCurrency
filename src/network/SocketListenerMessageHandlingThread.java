@@ -27,7 +27,6 @@ public class SocketListenerMessageHandlingThread implements Runnable {
 
     @Override
     public void run() {
-        System.err.println("SocketListenerMessageHandlingThread: Assigned the message to a handling thread - " + message);
         try {
             if (message.getType() == MessageType.FIND_SUCCESSOR_JOIN) {
                 long id = (Long) message.getObject();
@@ -68,11 +67,23 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                 } else {
                     writeAnswer(new Message(MessageType.SEND_PREDECESSOR, null, tag));
                 }
+                System.out.println("Raspund cu predecesorul meu: " + correspondingNode.getPredecessor());
+
             }
 
             // message from predecessor
             if (message.getType() == MessageType.NOTIFY_SUCCESSOR) {
                 handleNotifySuccessor(message);
+            }
+
+            if (message.getType() == MessageType.GET_SUCCESSOR) {
+                int tag = message.getTag();
+                writeAnswer(new Message(MessageType.SEND_SUCCESSOR, correspondingNode.getSuccessor(), tag));
+            }
+
+            if (message.getType() == MessageType.CHECK_PREDECESSOR) {
+                // this is a ping from my successor to see if I am alive, send the message back
+                writeAnswer(message);
             }
 
         } catch (IOException e) {

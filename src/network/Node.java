@@ -33,11 +33,11 @@ public class Node {
 
     private NodeInfo predecessor;
     private NodeInfo successor;
+    private NodeInfo nextSuccessor;
 
     private Dispatcher dispatcher;
 
     public Node(final String ip, final int port) {
-        // todo get bootstrap nodes from configuration
         bootstrapNodes = new ArrayList<Integer>();
         bootstrapNodes.add(10000);
 
@@ -78,7 +78,13 @@ public class Node {
         new StabilizeThread(this, dispatcher).start();
 
         // create a separate thread that will fix the fingers
-        new FixFingersThread(dispatcher, id, this).start();
+//        new FixFingersThread(dispatcher, id, this).start();
+
+        // check for predecessor thread
+        new CheckPredecessorThread(this, dispatcher).start();
+
+        // thread that asks the successor about its successor
+        new AskForSuccessorsThread(this, dispatcher).start();
     }
 
 
@@ -177,5 +183,13 @@ public class Node {
 
     public NodeInfo getNodeInfo() {
         return new NodeInfo(ip, port, id);
+    }
+
+    public NodeInfo getNextSuccessor() {
+        return nextSuccessor;
+    }
+
+    public void setNextSuccessor(NodeInfo nextSuccessor) {
+        this.nextSuccessor = nextSuccessor;
     }
 }

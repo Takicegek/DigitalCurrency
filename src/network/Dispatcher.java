@@ -64,22 +64,26 @@ public class Dispatcher {
         }
 
         if (!senderThreads.containsKey(destination)) {
+            Streams streams = null;
             try {
                 Socket socket = new Socket(destination.getIp(), destination.getPort());
-                Streams streams = new Streams(socket);
-
-                MessageSenderThread senderThread = new MessageSenderThread(streams, this, destination);
-                senderThread.start();
-
-                MessageReceiverThread receiverThread = new MessageReceiverThread(streams.getObjectInputStream(), this, destination);
-                receiverThread.start();
-
-                senderThreads.put(destination, senderThread);
+                streams = new Streams(socket);
             } catch (UnknownHostException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                e.printStackTrace();
+                // the socket could not be opened; tell the node to retry
+                handleMessageFailure(messageToSend, destination);
+                // do not start threads or try to send messages if the socket could not be opened
+                return futureMessage;
             }
+
+            MessageSenderThread senderThread = new MessageSenderThread(streams, this, destination);
+            senderThread.start();
+
+            MessageReceiverThread receiverThread = new MessageReceiverThread(streams.getObjectInputStream(), this, destination);
+            receiverThread.start();
+
+            senderThreads.put(destination, senderThread);
         }
 
         MessageSenderThread senderThread = senderThreads.get(destination);
@@ -111,12 +115,19 @@ public class Dispatcher {
         FutureMessage futureMessage = futures.get(tag);
         futures.remove(tag);
 
-        System.err.println((new Date()).toString() + " " + "The message could not be sent: " + message.getObject());
+        System.err.println((new Date()).toString() + " " + "The message could not be sent: " + message);
 
-        message.setType(MessageType.RETRY);
-        futureMessage.setMessage(message);
+        if (futureMessage != null) {
+            message.setType(MessageType.RETRY);
+            futureMessage.setMessage(message);
 
-        removeMessageFromWaitingMap(message, destination);
+            System.out.println("Dispatcher: Schimb tipul in RETRY pe mesajul cu tagul " + tag + " pentru ca nu s-a putut trimite.");
+
+            removeMessageFromWaitingMap(message, destination);
+        }
+
+        // remove the destination threads; it is finished.
+        senderThreads.remove(destination);
     }
 
     private void removeMessageFromWaitingMap(Message message, NodeInfo nodeInfo) {
@@ -132,6 +143,7 @@ public class Dispatcher {
     }
 
     /**
+     * Method called from MessageReceiverThread when the other node closes the socket.
      * Change the state of all the waiting messages to RETRY and release their futures.
      */
     public synchronized void handleConnectionError(NodeInfo nodeInfo) {
@@ -144,7 +156,11 @@ public class Dispatcher {
 
             futureMessage.setMessage(message);
             iterator.remove();
+
+            System.out.println("Dispatcher: Trimit RETRY pe mesajul cu tagul " + tag);
         }
         messagesWaitingForAnswer.remove(nodeInfo);
+
+        // todo clear senderThreads
     }
 }

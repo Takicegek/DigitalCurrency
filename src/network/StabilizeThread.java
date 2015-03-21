@@ -29,11 +29,11 @@ public class StabilizeThread extends Thread {
     public void run() {
         try {
             stabilize();
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
             e.printStackTrace();
         }
     }
@@ -44,35 +44,45 @@ public class StabilizeThread extends Thread {
      *
      * The described task is run periodically.
      */
-    private void stabilize() throws IOException, ClassNotFoundException, InterruptedException {
+    private void stabilize() throws ClassNotFoundException, InterruptedException, ExecutionException {
 
         while (true) {
             if (correspondingNode.getSuccessor().getKey() == id && correspondingNode.getSuccessor().getPort() == port) {
                 System.out.println((new Date()).toString() + " " +"Stabilize first node . . ");
                 stabilizeFirstNodeInRing();
             } else {
-                System.out.println((new Date()).toString() + " " +"Stabilize node (ask successor about predecessor and notify predecessor) ");
+                System.out.println((new Date()).toString() + " " + "Stabilize node (ask successor about predecessor and notify predecessor) ");
                 // ask the successor for its predecessor
-                // reuse the streams associated with the successor
-                /*
-                    If an IOException occurs, it means that the successor left.
-                    A FIND_SUCCESSOR_JOIN message is sent to a bootstrap node and a new successor is found.
-                    However, it may also leave and another exception would be thrown.
-                    Solution: loop until the message is actually sent.
-                 */
-                Future<Message> messageFuture = null;
-
                 Message message = new Message(MessageType.GET_PREDECESSOR, null);
-                messageFuture = dispatcher.sendMessage(message, true, 0);
+                Future<Message> messageFuture = dispatcher.sendMessage(message, true, 0);
 
-                // get the answer
-                // exit the current iteration of the while loop if an exception is caught
-                Message received = null;
-                try {
+                /*
+                If the dispatcher cannot send or receive the message, the Message received by the node has
+                the type MessageType.RETRY.
+                Change the successor and try again until the message is successfully transmitted.
+                 */
+
+                boolean success;
+                Message received;
+                do {
+                    success = true;
+                    System.out.println("StabilizeThread: Waiting for message future . . ");
                     received = messageFuture.get();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                }
+                    System.out.println("StabilizeThread: Message read - " + received);
+                    if (received.getType() == MessageType.RETRY) {
+                        success = false;
+                        // change the successor
+                        synchronized (correspondingNode.getFingerTable()) {
+                            correspondingNode.setSuccessor(correspondingNode.getNextSuccessor());
+                            correspondingNode.getFingerTable().remove(0);
+                            correspondingNode.getFingerTable().add(0, correspondingNode.getNextSuccessor());
+                        }
+                        message = new Message(MessageType.GET_PREDECESSOR, null);
+                        messageFuture = dispatcher.sendMessage(message, true, 0);
+                        System.out.println("Trimit un nou mesaj la " + correspondingNode.getFingerTable().get(0));
+                    }
+                    System.out.println("Stabilize Thread: Message type = " + received.getType());
+                } while (!success);
 
                 // we know that the object inside the message is a NodeInfo
                 NodeInfo receivedNode = (NodeInfo) received.getObject();
@@ -85,14 +95,15 @@ public class StabilizeThread extends Thread {
                 if (receivedNode != null && receivedNode.getKey() != id &&
                         SocketListener.belongsToInterval(receivedNode.getKey(), id, correspondingNode.getSuccessor().getKey())) {
 
-                    // the predecessor received from my successor is in front of me, so it becomes my successor
-                    correspondingNode.setSuccessor(receivedNode);
+                    synchronized (correspondingNode.getFingerTable()) {
+                        // the predecessor received from my successor is in front of me, so it becomes my successor
+                        correspondingNode.setSuccessor(receivedNode);
 
-                    // update the finger table
-                    correspondingNode.getFingerTable().remove(0);
-                    correspondingNode.getFingerTable().add(0, receivedNode);
-
-                    System.out.println((new Date()).toString() + " " +id + ": I have a new successor! It is " + receivedNode.toString());
+                        // update the finger table
+                        correspondingNode.getFingerTable().remove(0);
+                        correspondingNode.getFingerTable().add(0, receivedNode);
+                    }
+                    System.out.println((new Date()).toString() + " " + id + ": I have a new successor! It is " + receivedNode.toString());
                 }
                 // notify the successor about its predecessor, which is the current node
                 Message notifyMessage = new Message(MessageType.NOTIFY_SUCCESSOR, new NodeInfo(correspondingNode.getIp(), port, id));

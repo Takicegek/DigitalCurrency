@@ -13,6 +13,10 @@ public enum MessageType {
     SEND_PREDECESSOR,
 
     NOTIFY_SUCCESSOR,
+    CHECK_PREDECESSOR,
+
+    GET_SUCCESSOR,
+    SEND_SUCCESSOR,
 
     RETRY;
 
