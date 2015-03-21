@@ -50,23 +50,32 @@ public class FixFingersThread extends Thread {
                     Future<Message> messageFuture = dispatcher.sendMessage(message, true, 0);
                     Message received = messageFuture.get();
 
-                    NodeInfo nodeInfo = (NodeInfo) received.getObject();
+                    /*
+                    If the dispatcher cannot send the message, the received message will have the RETRY type.
+                    If so, do not try to change the finger. Wait for the StabilizeThread to fix the
+                    successor and then the message will be successfully sent.
+                    The finger will be fixed in the next iteration.
+                     */
 
-                    System.out.println("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
+                    if (received.getType() != MessageType.RETRY) {
+                        NodeInfo nodeInfo = (NodeInfo) received.getObject();
 
-                    // check if the found finger is already present in the table
-                    if (!correspondingNode.getFingerTable().get(next).equals(nodeInfo)) {
+                        System.out.println("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
 
-                        System.out.println(correspondingNode.getFingerTable().get(next).toString() + " nu e egal cu " + nodeInfo.toString());
+                        // check if the found finger is already present in the table
+                        if (!correspondingNode.getFingerTable().get(next).equals(nodeInfo)) {
 
-                        // replace the finger
-                        correspondingNode.getFingerTable().remove(next);
-                        correspondingNode.getFingerTable().add(next, nodeInfo);
+                            System.out.println(correspondingNode.getFingerTable().get(next).toString() + " nu e egal cu " + nodeInfo.toString());
 
-                        System.out.println("Finger " + next + " == " + nodeInfo);
+                            // replace the finger
+                            correspondingNode.getFingerTable().remove(next);
+                            correspondingNode.getFingerTable().add(next, nodeInfo);
+
+                            System.out.println("Finger " + next + " == " + nodeInfo);
+                        }
+
+                        System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
                     }
-
-                    System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
                 }
             } catch (InterruptedException e) {
                 // MessageFuture.get()

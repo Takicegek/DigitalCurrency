@@ -160,7 +160,5 @@ public class Dispatcher {
             System.out.println("Dispatcher: Trimit RETRY pe mesajul cu tagul " + tag);
         }
         messagesWaitingForAnswer.remove(nodeInfo);
-
-        // todo clear senderThreads
     }
 }

@@ -78,7 +78,7 @@ public class Node {
         new StabilizeThread(this, dispatcher).start();
 
         // create a separate thread that will fix the fingers
-//        new FixFingersThread(dispatcher, id, this).start();
+        new FixFingersThread(dispatcher, id, this).start();
 
         // check for predecessor thread
         new CheckPredecessorThread(this, dispatcher).start();
