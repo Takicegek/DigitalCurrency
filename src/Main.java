@@ -5,6 +5,8 @@ import network.Node;
  */
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        Node bootstrap = new Node("localhost", 10004);
+        Node bootstrap = new Node("localhost", 10010);
+        Thread.sleep(10000);
+        bootstrap.broadcastMessage("My seventh broacast message!");
     }
 }

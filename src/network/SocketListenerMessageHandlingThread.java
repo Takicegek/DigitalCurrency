@@ -1,7 +1,6 @@
 package network;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
@@ -86,11 +85,127 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                 writeAnswer(message);
             }
 
+            if (message.getType() == MessageType.BROADCAST_MESSAGE) {
+                handleBroadcastMessage((BroadcastMessageWrapper) message.getObject());
+            }
+
         } catch (IOException e) {
             System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket.");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * todo
+     * @param wrapper
+     */
+    private void handleBroadcastMessage(BroadcastMessageWrapper wrapper) {
+        long start = wrapper.getStart();
+        long end = wrapper.getEnd();
+
+        System.err.println("**Am primit un mesaj broadcast cu start = " + start + " si end = " + end);
+
+        // notify the node
+        correspondingNode.handleReceivedMessage(wrapper);
+
+        long successorKey = correspondingNode.getFingerTable().get(0).getKey();
+
+        // send the message further only if the successor is in the given interval
+        if (SocketListener.belongsToClosedInterval(successorKey, start, end)) {
+            int finger = getFingerForBroadcast(start, end);
+
+            // if the closest finger to the middle is the same with successor, find another one
+            if (correspondingNode.getFingerTable().get(finger).getKey() == correspondingNode.getFingerTable().get(0).getKey()) {
+                finger = getLastFingerInInterval(start, end);
+
+                // if the last finger in interval points to the same node as the successor, send the message only once
+                if (successorKey == correspondingNode.getFingerTable().get(finger).getKey()) {
+                    wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
+                    wrapper.setEnd(end);
+
+                    Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                    System.err.println("**Il trimit doar spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
+                    dispatcher.sendMessage(first, false, 0);
+                } else {
+                    // send a message to successor and one to the newly found finger
+                    long fingerKey = correspondingNode.getFingerTable().get(finger).getKey();
+
+                    System.err.println("****Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey-1));
+                    System.err.println("****Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
+
+                    wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
+                    wrapper.setEnd(fingerKey - 1);
+
+                    Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                    dispatcher.sendMessage(first, false, 0);
+
+                    BroadcastMessageWrapper secondWrapper = new BroadcastMessageWrapper(fingerKey, end, wrapper.getMessage());
+                    Message second = new Message(MessageType.BROADCAST_MESSAGE, secondWrapper);
+                    dispatcher.sendMessage(second, false, finger);
+                }
+            } else {
+                // send the message to the successor and to the finger
+                long fingerKey = correspondingNode.getFingerTable().get(finger).getKey();
+
+                System.err.println("**Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey-1));
+                System.err.println("**Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
+
+
+                wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
+                wrapper.setEnd(fingerKey - 1);
+
+                Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                dispatcher.sendMessage(first, false, 0);
+
+                BroadcastMessageWrapper secondWrapper = new BroadcastMessageWrapper(fingerKey, end, wrapper.getMessage());
+                Message second = new Message(MessageType.BROADCAST_MESSAGE, secondWrapper);
+                dispatcher.sendMessage(second, false, finger);
+            }
+        }
+    }
+
+    /**
+     * Computes the finger to which the broadcast message will be sent - the one in the middle.
+     * The finger should be inside the [start, end] interval.
+     *
+     * @param start
+     * @param end
+     * @return the finger id or -1 if there is no finger in the interval
+     */
+    private int getFingerForBroadcast(long start, long end) {
+        long min = Long.MAX_VALUE;
+        int finger = -1;
+
+        long distance = (end - start + Node.NUMBER_OF_NODES) % Node.NUMBER_OF_NODES;
+        long middle = (start + distance / 2) % Node.NUMBER_OF_NODES;
+
+        for (int i = 0; i < Node.LOG_NODES; i++) {
+            NodeInfo node = correspondingNode.getFingerTable().get(i);
+            if (SocketListener.belongsToClosedInterval(node.getKey(), start, end)) {
+                if (Math.abs(node.getKey() - middle) < min) {
+                    min = Math.abs(node.getKey() - middle);
+                    finger = i;
+                }
+            }
+        }
+
+        if (finger == -1) {
+            System.out.println("Finger = -1 !!!!!!!!!!!!!!!!! start = " + start + ", end = " + end);
+        }
+
+        return finger;
+    }
+
+    private int getLastFingerInInterval(long start, long end) {
+        int last = 0;
+        for (int i = 0; i < Node.LOG_NODES; i++) {
+            NodeInfo node = correspondingNode.getFingerTable().get(i);
+            if (SocketListener.belongsToClosedInterval(node.getKey(), start, end)) {
+                last = i;
+            }
+        }
+        return last;
     }
 
     private void handleNotifySuccessor(Message message) throws IOException {
@@ -109,7 +224,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         Message answer = null;
         long id = (Long) message.getObject();
 
-        if (SocketListener.belongsToInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
+        if (SocketListener.belongsToOpenInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
             // the node is between this one and its successor, send the successor id
             answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor());
             System.out.println((new Date()).toString() + " " +id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
@@ -145,7 +260,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         /*for (int i = correspondingNode.getFingerTable().size() - 1; i >= 0; i--) {
             long fingerId = correspondingNode.getFingerTable().get(i).getKey();
 
-            if (belongsToInterval(fingerId, correspondingNode.getId(), key)) {
+            if (belongsToOpenInterval(fingerId, correspondingNode.getId(), key)) {
                 return correspondingNode.getFingerTable().get(i);
             }
         }*/

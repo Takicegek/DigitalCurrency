@@ -1,11 +1,8 @@
 package network;
 
-import utils.NodeGUI;
-
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.*;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -143,6 +140,27 @@ public class Node {
                 e.printStackTrace();
             }
         }
+    }
+
+    /**
+     * Sends a broadcast message. Here the message is sent only to successor.
+     *
+     * The way broadcast is implemented is described in BroadcastMessageWrapper.
+     *
+     * @param objectToSend
+     */
+    public void broadcastMessage(Object objectToSend) {
+        long successorId = successor.getKey();
+
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
+                    (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, objectToSend);
+        Message message = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+
+        dispatcher.sendMessage(message, false, 0);
+    }
+
+    public void handleReceivedMessage(BroadcastMessageWrapper message) {
+        System.out.println("Am primit un mesaj broadcast: " + message.getMessage());
     }
 
     private void dealWithClient(Socket client) {

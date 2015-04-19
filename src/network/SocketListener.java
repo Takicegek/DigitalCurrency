@@ -56,11 +56,38 @@ public class SocketListener implements Runnable {
     }
 
 
-    protected static boolean belongsToInterval(long id, long nodeId, long successor) {
+    /**
+     * @param id
+     * @param nodeId
+     * @param successor
+     * @return true if id is between nodeId and successor
+     */
+    protected static boolean belongsToOpenInterval(long id, long nodeId, long successor) {
         if (nodeId < successor && nodeId < id && id < successor) {
             return true;
         }
         if (nodeId > successor && (id > nodeId || id < successor)) {
+            return true;
+        }
+        // this is the single node in the network
+        if (nodeId == successor) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if the id is in the interval [nodeId, successor]
+     * @param id
+     * @param nodeId
+     * @param successor
+     * @return true if id is between nodeId and successor
+     */
+    protected static boolean belongsToClosedInterval(long id, long nodeId, long successor) {
+        if (nodeId < successor && nodeId <= id && id <= successor) {
+            return true;
+        }
+        if (nodeId > successor && (id >= nodeId || id <= successor)) {
             return true;
         }
         // this is the single node in the network

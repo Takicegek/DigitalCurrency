@@ -1,5 +1,8 @@
 package network;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Created by Sorin Nutu on 2/17/2015.
  */
@@ -18,12 +21,18 @@ public enum MessageType {
     GET_SUCCESSOR,
     SEND_SUCCESSOR,
 
-    RETRY;
+    RETRY,
+
+    BROADCAST_MESSAGE;
+
+    private static Set<MessageType> answerNotNeeded = new HashSet<MessageType>() {
+        {
+            add(MessageType.BROADCAST_MESSAGE);
+            add(NOTIFY_SUCCESSOR);
+        }
+    };
 
     public static boolean waitForAnswer(MessageType type) {
-        if (type == MessageType.NOTIFY_SUCCESSOR) {
-            return false;
-        }
-        return true;
+        return !answerNotNeeded.contains(type);
     }
 }

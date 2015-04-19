@@ -1,9 +1,5 @@
 package network;
-import utils.NodeGUI;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -93,7 +89,7 @@ public class StabilizeThread extends Thread {
                 // 2. Another node joined between me and my successor
                 // Should determine here if I change the successor.
                 if (receivedNode != null && receivedNode.getKey() != id &&
-                        SocketListener.belongsToInterval(receivedNode.getKey(), id, correspondingNode.getSuccessor().getKey())) {
+                        SocketListener.belongsToOpenInterval(receivedNode.getKey(), id, correspondingNode.getSuccessor().getKey())) {
 
                     synchronized (correspondingNode.getFingerTable()) {
                         // the predecessor received from my successor is in front of me, so it becomes my successor
