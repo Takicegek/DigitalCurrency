@@ -1,5 +1,9 @@
 package network;
 
+import currency.BlockchainAndTransactionsWrapper;
+import currency.Client;
+import jdk.nashorn.internal.ir.Block;
+
 import java.io.IOException;
 import java.net.*;
 import java.security.PrivateKey;
@@ -34,9 +38,14 @@ public class Node {
 
     private Dispatcher dispatcher;
 
-    public Node(final String ip, final int port) {
+    // the network node needs to know about the client because other clients could ask for the block chain
+    private Client client;
+
+    public Node(final String ip, final int port, Client client) {
         bootstrapNodes = new ArrayList<Integer>();
         bootstrapNodes.add(10000);
+
+        this.client = client;
 
         fingerTable = new ArrayList<NodeInfo>(LOG_NODES);
         dispatcher = new Dispatcher(this);
@@ -83,8 +92,6 @@ public class Node {
         // thread that asks the successor about its successor
         new AskForSuccessorsThread(this, dispatcher).start();
     }
-
-
 
     private NodeInfo findSuccessor(String ip, int port) {
         NodeInfo nodeInfo = null;
@@ -161,6 +168,56 @@ public class Node {
 
     public void handleReceivedMessage(BroadcastMessageWrapper message) {
         System.out.println("Am primit un mesaj broadcast: " + message.getMessage());
+    }
+
+    /**
+     * Ask the successor for its block chain and unspent transactions database.
+     * They will be wrapped in a BlockchainAndTransactionsWrapper object.
+     * @return
+     */
+    public BlockchainAndTransactionsWrapper askSuccessorForBlockchain() {
+        Message message = new Message(MessageType.GET_BLOCKCHAIN, null);
+        Message answer = null;
+
+        try {
+            answer = sendReliable(message, 0);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return (BlockchainAndTransactionsWrapper) answer.getObject();
+    }
+
+    /**
+     * Send a message and waits for an answer. If an error occurs and the message is not successfully sent or
+     * received, the message is sent again.
+     *
+     * @param message
+     * @param finger
+     * @return the received message
+     */
+    private Message sendReliable(Message message, int finger)
+            throws ExecutionException, InterruptedException {
+        boolean success = false;
+        Future<Message> future;
+        Message answer;
+
+        do {
+            future = dispatcher.sendMessage(message, true, finger);
+            answer = future.get();
+
+            if (answer.getType() != MessageType.RETRY) {
+                success = true;
+            }
+        } while (!success);
+
+        return answer;
+    }
+
+    public BlockchainAndTransactionsWrapper getBlockchainAndTransactions() {
+        return new BlockchainAndTransactionsWrapper(client.getUnspentTransactions(), client.getBlockchain());
     }
 
     private void dealWithClient(Socket client) {

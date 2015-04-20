@@ -1,5 +1,7 @@
 package network;
 
+import currency.BlockchainAndTransactionsWrapper;
+
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Date;
@@ -87,6 +89,13 @@ public class SocketListenerMessageHandlingThread implements Runnable {
 
             if (message.getType() == MessageType.BROADCAST_MESSAGE) {
                 handleBroadcastMessage((BroadcastMessageWrapper) message.getObject());
+            }
+
+            if (message.getType() == MessageType.GET_BLOCKCHAIN) {
+                // add the wrapper to the existing message, the tag should be the same
+                BlockchainAndTransactionsWrapper wrapper = correspondingNode.getBlockchainAndTransactions();
+                message.setObject(wrapper);
+                writeAnswer(message);
             }
 
         } catch (IOException e) {
