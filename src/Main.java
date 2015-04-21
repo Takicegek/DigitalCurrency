@@ -1,4 +1,5 @@
 import currency.Client;
+import currency.Transaction;
 
 /**
  * Created by Sorin Nutu on 2/17/2015.
