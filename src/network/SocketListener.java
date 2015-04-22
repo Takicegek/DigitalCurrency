@@ -81,6 +81,23 @@ public class SocketListener implements Runnable {
     }
 
     /**
+     * Checks if the id belongs to (nodeId, successor].
+     * @param id
+     * @param nodeId
+     * @param successor
+     * @return
+     */
+    protected static boolean belongsToIntervalForBroadcast(long id, long nodeId, long successor) {
+        if (nodeId < successor && nodeId < id && id <= successor) {
+            return true;
+        }
+        if (nodeId > successor && (id > nodeId || id <= successor)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Checks if the id is in the interval [nodeId, successor]
      * @param id
      * @param nodeId

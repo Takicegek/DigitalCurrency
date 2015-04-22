@@ -1,6 +1,7 @@
 package network;
 
 import currency.BlockchainAndTransactionsWrapper;
+import currency.Transaction;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -88,7 +89,19 @@ public class SocketListenerMessageHandlingThread implements Runnable {
             }
 
             if (message.getType() == MessageType.BROADCAST_MESSAGE) {
-                handleBroadcastMessage((BroadcastMessageWrapper) message.getObject());
+                BroadcastMessageWrapper wrapper = (BroadcastMessageWrapper) message.getObject();
+                correspondingNode.handleReceivedMessage(wrapper);
+
+                // send the wrapper further with the same type it was received
+                handleBroadcastMessage(wrapper, MessageType.BROADCAST_MESSAGE);
+            }
+
+            if (message.getType() == MessageType.BROADCAST_TRANSACTION) {
+                BroadcastMessageWrapper wrapper = (BroadcastMessageWrapper) message.getObject();
+                correspondingNode.handleReceivedTransaction((Transaction) wrapper.getMessage());
+
+                // send the wrapper further with the same type it was received
+                handleBroadcastMessage(wrapper, MessageType.BROADCAST_TRANSACTION);
             }
 
             if (message.getType() == MessageType.GET_BLOCKCHAIN) {
@@ -106,17 +119,17 @@ public class SocketListenerMessageHandlingThread implements Runnable {
     }
 
     /**
-     * todo
+     * todo add description
+     *
+     * The same method is called for all broadcasts (messages, transactions, blocks). The type parameter is needed
+     * in order to send the message further with the same type. Only the interval limits will be changed.
      * @param wrapper
      */
-    private void handleBroadcastMessage(BroadcastMessageWrapper wrapper) {
+    private void handleBroadcastMessage(BroadcastMessageWrapper wrapper, MessageType type) {
         long start = wrapper.getStart();
         long end = wrapper.getEnd();
 
         System.err.println("**Am primit un mesaj broadcast cu start = " + start + " si end = " + end);
-
-        // notify the node
-        correspondingNode.handleReceivedMessage(wrapper);
 
         long successorKey = correspondingNode.getFingerTable().get(0).getKey();
 
@@ -133,7 +146,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                     wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
                     wrapper.setEnd(end);
 
-                    Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                    Message first = new Message(type, wrapper);
                     System.err.println("**Il trimit doar spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
                     dispatcher.sendMessage(first, false, 0);
                 } else {
@@ -146,11 +159,11 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                     wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
                     wrapper.setEnd(fingerKey - 1);
 
-                    Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                    Message first = new Message(type, wrapper);
                     dispatcher.sendMessage(first, false, 0);
 
                     BroadcastMessageWrapper secondWrapper = new BroadcastMessageWrapper(fingerKey, end, wrapper.getMessage());
-                    Message second = new Message(MessageType.BROADCAST_MESSAGE, secondWrapper);
+                    Message second = new Message(type, secondWrapper);
                     dispatcher.sendMessage(second, false, finger);
                 }
             } else {
@@ -164,11 +177,11 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                 wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
                 wrapper.setEnd(fingerKey - 1);
 
-                Message first = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+                Message first = new Message(type, wrapper);
                 dispatcher.sendMessage(first, false, 0);
 
                 BroadcastMessageWrapper secondWrapper = new BroadcastMessageWrapper(fingerKey, end, wrapper.getMessage());
-                Message second = new Message(MessageType.BROADCAST_MESSAGE, secondWrapper);
+                Message second = new Message(type, secondWrapper);
                 dispatcher.sendMessage(second, false, finger);
             }
         }
@@ -191,7 +204,8 @@ public class SocketListenerMessageHandlingThread implements Runnable {
 
         for (int i = 0; i < Node.LOG_NODES; i++) {
             NodeInfo node = correspondingNode.getFingerTable().get(i);
-            if (SocketListener.belongsToClosedInterval(node.getKey(), start, end)) {
+            // check if the finger is populated!
+            if (node.getKey() != -1 && SocketListener.belongsToClosedInterval(node.getKey(), start, end)) {
                 if (Math.abs(node.getKey() - middle) < min) {
                     min = Math.abs(node.getKey() - middle);
                     finger = i;
@@ -210,7 +224,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         int last = 0;
         for (int i = 0; i < Node.LOG_NODES; i++) {
             NodeInfo node = correspondingNode.getFingerTable().get(i);
-            if (SocketListener.belongsToClosedInterval(node.getKey(), start, end)) {
+            if (node.getKey() != -1 && SocketListener.belongsToIntervalForBroadcast(node.getKey(), start, end)) {
                 last = i;
             }
         }

@@ -24,8 +24,8 @@ public enum MessageType {
     RETRY,
 
     GET_BLOCKCHAIN, // ask the successor for the block chain and unspent transactions
-    SEND_BLOCKCHAIN,
 
+    BROADCAST_TRANSACTION,
     BROADCAST_MESSAGE;
 
     private static Set<MessageType> answerNotNeeded = new HashSet<MessageType>() {

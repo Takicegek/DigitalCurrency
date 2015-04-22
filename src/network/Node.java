@@ -2,6 +2,7 @@ package network;
 
 import currency.BlockchainAndTransactionsWrapper;
 import currency.Client;
+import currency.Transaction;
 import jdk.nashorn.internal.ir.Block;
 
 import java.io.IOException;
@@ -151,6 +152,7 @@ public class Node {
 
     /**
      * Sends a broadcast message. Here the message is sent only to successor.
+     * Using this method, it is not guaranteed that the message will arrive at the destination.
      *
      * The way broadcast is implemented is described in BroadcastMessageWrapper.
      *
@@ -160,14 +162,29 @@ public class Node {
         long successorId = successor.getKey();
 
         BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
-                    (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, objectToSend);
+                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, objectToSend);
         Message message = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
+
+        dispatcher.sendMessage(message, false, 0);
+    }
+
+    public void broadcastTransaction(Transaction transaction) {
+        long successorId = successor.getKey();
+
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
+                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, transaction);
+        Message message = new Message(MessageType.BROADCAST_TRANSACTION, wrapper);
 
         dispatcher.sendMessage(message, false, 0);
     }
 
     public void handleReceivedMessage(BroadcastMessageWrapper message) {
         System.out.println("Am primit un mesaj broadcast: " + message.getMessage());
+    }
+
+
+    public void handleReceivedTransaction(Transaction wrapper) {
+        client.handleReceivedTransaction(wrapper);
     }
 
     /**

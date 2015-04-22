@@ -22,6 +22,14 @@ public class Transaction implements Serializable {
         this.outputs = outputs;
     }
 
+    public List<TransactionRecord> getInputs() {
+        return inputs;
+    }
+
+    public List<TransactionRecord> getOutputs() {
+        return outputs;
+    }
+
     public static class Builder {
         private long id;
         private List<TransactionRecord> inputs;

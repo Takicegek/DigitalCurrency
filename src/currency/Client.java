@@ -1,5 +1,6 @@
 package currency;
 
+import network.BroadcastMessageWrapper;
 import network.Node;
 
 import java.util.HashSet;
@@ -43,7 +44,16 @@ public class Client {
             for (TransactionRecord t : unspentTransactions) {
                 System.out.println("Transaction: " + t.getAmount());
             }
+
+            // create a fake transaction to introduce money in the network (this should be removed and left only
+            // for the bootstrap node) !!
+            TransactionRecord record = new TransactionRecord(0, id, 10);
+            unspentTransactions.add(record);
         }
+    }
+
+    public void broadcastTransaction(Transaction transaction) {
+        networkNode.broadcastTransaction(transaction);
     }
 
     public Set<Block> getBlockchain() {
@@ -52,5 +62,11 @@ public class Client {
 
     public Set<TransactionRecord> getUnspentTransactions() {
         return unspentTransactions;
+    }
+
+    public void handleReceivedTransaction(Transaction transaction) {
+        System.out.println("I have received a transaction!");
+        System.out.println("Number of inputs: " + transaction.getInputs().size());
+        System.out.println("Number of outputs: " + transaction.getOutputs().size());
     }
 }
