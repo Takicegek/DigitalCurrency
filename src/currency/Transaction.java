@@ -1,10 +1,11 @@
 package currency;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.security.*;
+import java.util.*;
 
 /**
  * Represents a transaction that is initiated by a client to transfer a certain amount of money.
@@ -14,8 +15,8 @@ public class Transaction implements Serializable {
     private long id;
     private List<TransactionRecord> inputs;
     private List<TransactionRecord> outputs;
-    private long signature;
-    private long sendersPublicKey;
+    private byte[] signature;
+    private PublicKey senderPublicKey;
 
     public Transaction(List<TransactionRecord> inputs, List<TransactionRecord> outputs) {
         this.inputs = inputs;
@@ -30,15 +31,29 @@ public class Transaction implements Serializable {
         return outputs;
     }
 
+    public void setSignature(byte[] signature) {
+        this.signature = signature;
+    }
+
+    public void setSenderPublicKey(PublicKey senderPublicKey) {
+        this.senderPublicKey = senderPublicKey;
+    }
+
+    public PublicKey getSenderPublicKey() {
+        return senderPublicKey;
+    }
+
     public static class Builder {
         private long id;
         private List<TransactionRecord> inputs;
         private List<TransactionRecord> outputs;
         private long signature;
-        private long sendersPublicKey;
         private Set<TransactionRecord> unspentTransactions;
         private double clientBalance;
         private double totalSpentAmount;
+        private PublicKey senderPublicKey;
+        private PrivateKey senderPrivateKey;
+        private PrivateKey receiverPublicKey;
 
         public static Builder getBuilder() {
             return new Builder();
@@ -54,24 +69,29 @@ public class Transaction implements Serializable {
             return this;
         }
 
+        public Builder withPrivateKey(PrivateKey senderPrivateKey) {
+            this.senderPrivateKey = senderPrivateKey;
+            return this;
+        }
+
         public Builder withClientBalance(double clientBalance) {
             this.clientBalance = clientBalance;
             return this;
         }
 
-        public Builder withClientPublicKey(long sendersPublicKey) {
-            this.sendersPublicKey = sendersPublicKey;
+        public Builder withPublicKey(PublicKey senderPublicKey) {
+            this.senderPublicKey = senderPublicKey;
             return this;
         }
 
-        public Builder withRecipient(long recipientPublicKey, double amount) {
+        public Builder withRecipient(PublicKey recipientPublicKey, double amount) {
             if (totalSpentAmount + amount > clientBalance) {
                 throw new IllegalArgumentException("The balance is smaller than the amount to be sent.");
             }
             totalSpentAmount += amount;
 
 
-            TransactionRecord record = new TransactionRecord(sendersPublicKey, recipientPublicKey, amount);
+            TransactionRecord record = new TransactionRecord(senderPublicKey, recipientPublicKey, amount);
             outputs.add(record);
 
             return this;
@@ -84,17 +104,17 @@ public class Transaction implements Serializable {
          * totalSpentAmount. Every record that is added as an input to this transaction is removed from the
          * unspentTransactions list.
          *
-         * After that, the digital signature should be added.
+         * After that, the digital signature is added.
          * @return
          */
-        public Transaction build() {
+        public Transaction build() throws IOException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
             double spentAmount = 0;
 
             Iterator<TransactionRecord> iterator = unspentTransactions.iterator();
 
             while (iterator.hasNext()) {
                 TransactionRecord record = iterator.next();
-                if (record.getRecipient() == sendersPublicKey) {
+                if (record.getRecipient().equals(senderPublicKey)) {
                     spentAmount += record.getAmount();
                     inputs.add(record);
                     iterator.remove();
@@ -106,13 +126,62 @@ public class Transaction implements Serializable {
 
             // send the change back
             if (spentAmount > totalSpentAmount) {
-                TransactionRecord change = new TransactionRecord(sendersPublicKey, sendersPublicKey, spentAmount - totalSpentAmount);
+                TransactionRecord change = new TransactionRecord(senderPublicKey, senderPublicKey, spentAmount - totalSpentAmount);
                 outputs.add(change);
             }
 
-            // todo add the digital signature
+            Transaction transaction = new Transaction(inputs, outputs);
 
-            return new Transaction(inputs, outputs);
+            // create the signature and attach it to the transaction, along with the sender's public key
+            byte[] signature = computeDigitalSignature(transaction);
+            transaction.setSignature(signature);
+            transaction.setSenderPublicKey(senderPublicKey);
+
+            return transaction;
         }
+
+        private byte[] computeDigitalSignature(Transaction transaction) throws NoSuchAlgorithmException,
+                InvalidKeyException, SignatureException, IOException {
+            Signature sig = Signature.getInstance("SHA1withRSA");
+            sig.initSign(senderPrivateKey);
+
+            byte[] data = transformToByteArray(transaction);
+            sig.update(data);
+
+            return sig.sign();
+        }
+
+        private byte[] transformToByteArray(Transaction transaction) throws IOException {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream);
+
+            outputStream.writeObject(transaction);
+
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Transaction that = (Transaction) o;
+
+        if (id != that.id) return false;
+        if (inputs != null ? !inputs.equals(that.inputs) : that.inputs != null) return false;
+        if (outputs != null ? !outputs.equals(that.outputs) : that.outputs != null) return false;
+        if (senderPublicKey != null ? !senderPublicKey.equals(that.senderPublicKey) : that.senderPublicKey != null)
+            return false;
+        if (!Arrays.equals(signature, that.signature)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = inputs != null ? inputs.hashCode() : 0;
+        result = 31 * result + (outputs != null ? outputs.hashCode() : 0);
+        return result;
     }
 }

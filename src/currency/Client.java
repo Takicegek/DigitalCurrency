@@ -1,8 +1,10 @@
 package currency;
 
+import currency.utils.PublicKeyUtils;
 import network.BroadcastMessageWrapper;
 import network.Node;
 
+import java.security.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -21,10 +23,24 @@ public class Client {
     // the current node in the peer to peer network
     private Node networkNode;
     private long id;
+    private PublicKey publicKey;
+    private PrivateKey privateKey;
 
     public Client(String ip, int port) {
         networkNode = new Node(ip, port, this);
         this.id = networkNode.getId();
+
+        KeyPairGenerator generator;
+        try {
+            generator = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Cannot instantiate the KeyPairGenerator." + e);
+        }
+        KeyPair pair = generator.generateKeyPair();
+        publicKey = pair.getPublic();
+        System.out.println("My address is " + PublicKeyUtils.getAddress(publicKey));
+        privateKey = pair.getPrivate();
+
         if (port == 10000) { // todo change the condition
             // create the block chain and add the initial block
             unspentTransactions = new HashSet<>();
@@ -32,7 +48,7 @@ public class Client {
             blockchain.add(new Block(null, 0));
 
             // create a fake transaction to introduce money in the network
-            TransactionRecord record = new TransactionRecord(0, id, 10);
+            TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
             unspentTransactions.add(record);
         } else {
             // ask the successor for the unspentTransactions and the block chain
@@ -47,7 +63,7 @@ public class Client {
 
             // create a fake transaction to introduce money in the network (this should be removed and left only
             // for the bootstrap node) !!
-            TransactionRecord record = new TransactionRecord(0, id, 10);
+            TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
             unspentTransactions.add(record);
         }
     }
@@ -65,7 +81,7 @@ public class Client {
     }
 
     public void handleReceivedTransaction(Transaction transaction) {
-        System.out.println("I have received a transaction!");
+        System.out.println("I have received a transaction from " + PublicKeyUtils.getAddress(transaction.getSenderPublicKey()));
         System.out.println("Number of inputs: " + transaction.getInputs().size());
         System.out.println("Number of outputs: " + transaction.getOutputs().size());
     }
