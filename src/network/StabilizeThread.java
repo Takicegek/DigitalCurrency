@@ -44,7 +44,7 @@ public class StabilizeThread extends Thread {
 
         while (true) {
             if (correspondingNode.getSuccessor().getKey() == id && correspondingNode.getSuccessor().getPort() == port) {
-                System.out.println((new Date()).toString() + " " +"Stabilize first node . . ");
+                System.out.println((new Date()).toString() + " " + "Stabilize first node . . ");
                 stabilizeFirstNodeInRing();
             } else {
                 System.out.println((new Date()).toString() + " " + "Stabilize node (ask successor about predecessor and notify predecessor) ");
@@ -118,7 +118,7 @@ public class StabilizeThread extends Thread {
     private void stabilizeFirstNodeInRing() {
         if (correspondingNode.getPredecessor() == null) {
             correspondingNode.setPredecessor(new NodeInfo(correspondingNode.getIp(), port, id));
-            System.out.println((new Date()).toString() + " " +"Stabilized the first node in ring.");
+            System.out.println((new Date()).toString() + " " + "Stabilized the first node in ring.");
         } else {
             // if another node joined and it has this node as its successor, it notifies and the current
             // node changes its predecessor; check if the predecessor is changed.

@@ -132,6 +132,11 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         System.err.println("**Am primit un mesaj broadcast cu start = " + start + " si end = " + end);
 
         long successorKey = correspondingNode.getFingerTable().get(0).getKey();
+        if (successorKey == correspondingNode.getId()) {
+            // this is the case when the network has only two nodes and the bootstrap node
+            // has its id as successor
+            return;
+        }
 
         // send the message further only if the successor is in the given interval
         if (SocketListener.belongsToClosedInterval(successorKey, start, end)) {
@@ -147,7 +152,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                     wrapper.setEnd(end);
 
                     Message first = new Message(type, wrapper);
-                    System.err.println("**Il trimit doar spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
+                    System.err.println("**Il trimit doar spre succesor " + successorKey + " cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
                     dispatcher.sendMessage(first, false, 0);
                 } else {
                     // send a message to successor and one to the newly found finger

@@ -43,11 +43,31 @@ public class Transaction implements Serializable {
         return senderPublicKey;
     }
 
+    /**
+     * Verifies the digital signature of this transaction using the sender's public key.
+     * The signature was computed when it was first created using the sender's private key.
+     * @return true if the digital signature is valid
+     */
+    public boolean hasValidDigitalSignature() {
+        boolean validSignature = false;
+        try {
+            byte[] data = transformToByteArray(this);
+            Signature sig = Signature.getInstance("SHA1withRSA");
+            sig.initVerify(senderPublicKey);
+            sig.update(data);
+
+            validSignature = sig.verify(signature);
+        } catch (Exception e) {
+            e.printStackTrace();
+            validSignature = false;
+        }
+        return validSignature;
+    }
+
     public static class Builder {
         private long id;
         private List<TransactionRecord> inputs;
         private List<TransactionRecord> outputs;
-        private long signature;
         private Set<TransactionRecord> unspentTransactions;
         private double clientBalance;
         private double totalSpentAmount;
@@ -133,9 +153,9 @@ public class Transaction implements Serializable {
             Transaction transaction = new Transaction(inputs, outputs);
 
             // create the signature and attach it to the transaction, along with the sender's public key
+            transaction.setSenderPublicKey(senderPublicKey);
             byte[] signature = computeDigitalSignature(transaction);
             transaction.setSignature(signature);
-            transaction.setSenderPublicKey(senderPublicKey);
 
             return transaction;
         }
@@ -151,14 +171,15 @@ public class Transaction implements Serializable {
             return sig.sign();
         }
 
-        private byte[] transformToByteArray(Transaction transaction) throws IOException {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream);
+    }
 
-            outputStream.writeObject(transaction);
+    private static byte[] transformToByteArray(Transaction transaction) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream outputStream = new ObjectOutputStream(byteArrayOutputStream);
 
-            return byteArrayOutputStream.toByteArray();
-        }
+        outputStream.writeObject(transaction.toString());
+
+        return byteArrayOutputStream.toByteArray();
     }
 
     @Override
@@ -183,5 +204,14 @@ public class Transaction implements Serializable {
         int result = inputs != null ? inputs.hashCode() : 0;
         result = 31 * result + (outputs != null ? outputs.hashCode() : 0);
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "senderPublicKey=" + senderPublicKey +
+                ", outputs=" + outputs +
+                ", inputs=" + inputs +
+                '}';
     }
 }
