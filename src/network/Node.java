@@ -1,13 +1,12 @@
 package network;
 
+import currency.Block;
 import currency.BlockchainAndTransactionsWrapper;
 import currency.Client;
 import currency.Transaction;
-import jdk.nashorn.internal.ir.Block;
 
 import java.io.IOException;
 import java.net.*;
-import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -178,6 +177,16 @@ public class Node {
         dispatcher.sendMessage(message, false, 0);
     }
 
+    public void broadcastBlock(Block block) {
+        long successorId = successor.getKey();
+
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
+                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, block);
+        Message message = new Message(MessageType.BROADCAST_BLOCK, wrapper);
+
+        dispatcher.sendMessage(message, false, 0);
+    }
+
     public void handleReceivedMessage(BroadcastMessageWrapper message) {
         System.out.println("Am primit un mesaj broadcast: " + message.getMessage());
     }
@@ -198,9 +207,7 @@ public class Node {
 
         try {
             answer = sendReliable(message, 0);
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -234,7 +241,8 @@ public class Node {
     }
 
     public BlockchainAndTransactionsWrapper getBlockchainAndTransactions() {
-        return new BlockchainAndTransactionsWrapper(client.getUnspentTransactions(), client.getBlockchain());
+        return new BlockchainAndTransactionsWrapper(client.getUnspentTransactions(),
+                client.getBlockchain(), client.getTransactionsWithoutBlock());
     }
 
     private void dealWithClient(Socket client) {

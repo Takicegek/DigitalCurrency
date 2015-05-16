@@ -1,6 +1,7 @@
 package currency;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -13,10 +14,14 @@ import java.util.Set;
 public class BlockchainAndTransactionsWrapper implements Serializable {
     private Set<TransactionRecord> unspentTransactions;
     private Set<Block> blockchain;
+    private List<Transaction> transactionsWithoutblock;
 
-    public BlockchainAndTransactionsWrapper(Set<TransactionRecord> unspentTransactions, Set<Block> blockchain) {
+    public BlockchainAndTransactionsWrapper(Set<TransactionRecord> unspentTransactions,
+                                            Set<Block> blockchain,
+                                            List<Transaction> transactionsWithoutblock) {
         this.unspentTransactions = unspentTransactions;
         this.blockchain = blockchain;
+        this.transactionsWithoutblock = transactionsWithoutblock;
     }
 
     public Set<TransactionRecord> getUnspentTransactions() {
@@ -25,5 +30,9 @@ public class BlockchainAndTransactionsWrapper implements Serializable {
 
     public Set<Block> getBlockchain() {
         return blockchain;
+    }
+
+    public List<Transaction> getTransactionsWithoutblock() {
+        return transactionsWithoutblock;
     }
 }

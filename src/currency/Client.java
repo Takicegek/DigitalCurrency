@@ -5,6 +5,7 @@ import network.Node;
 
 import java.io.IOException;
 import java.security.*;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ import java.util.logging.SimpleFormatter;
 public class Client {
     private Logger transactionsLogger;
     private Set<TransactionRecord> unspentTransactions;
+    private List<Transaction> transactionsWithoutBlock;
     private Set<Block> blockchain;
     private double balance;
     // the current node in the peer to peer network
@@ -31,6 +33,8 @@ public class Client {
     private long id;
     private PublicKey publicKey;
     private PrivateKey privateKey;
+    private ProofOfWork proofOfWorkInstance;
+    private Thread proofOfWorkThread;
 
 
     public Client(String ip, int port) {
@@ -54,7 +58,9 @@ public class Client {
             // create the block chain and add the initial block
             unspentTransactions = new HashSet<>();
             blockchain = new HashSet<>();
-            blockchain.add(new Block(null, 0));
+            transactionsWithoutBlock = new ArrayList<>();
+
+            blockchain.add(Block.createGenesisBlock());
 
             // create a fake transaction to introduce money in the network
             TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
@@ -64,12 +70,14 @@ public class Client {
             BlockchainAndTransactionsWrapper wrapper = networkNode.askSuccessorForBlockchain();
             unspentTransactions = wrapper.getUnspentTransactions();
             blockchain = wrapper.getBlockchain();
+            transactionsWithoutBlock = wrapper.getTransactionsWithoutblock();
 
             String logMessage = "Received the blockchain from successor.\n";
             logMessage = logMessage + "Unspent transactions size = " + unspentTransactions.size() + "\n";
             for (TransactionRecord t : unspentTransactions) {
                 logMessage = logMessage + "Transaction: " + t.getAmount() + "\n";
             }
+            logMessage = logMessage + "There are " + transactionsWithoutBlock.size() + " transactions without a block.\n";
             transactionsLogger.info(logMessage);
 
             // create a fake transaction to introduce money in the network (this should be removed and left only
@@ -77,6 +85,19 @@ public class Client {
             TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
             unspentTransactions.add(record);
         }
+
+        proofOfWorkInstance = new HashProofOfWork(this, networkNode);
+        startProofOfWorkThread();
+    }
+
+    /**
+     * The ProofOfWork instance has a state, which is represented by its members.
+     * Start a new thread (run the mine() method) using the same object with the old state.
+     * The transactions will not be lost.
+     */
+    private void startProofOfWorkThread() {
+        proofOfWorkThread = new Thread(proofOfWorkInstance);
+        proofOfWorkThread.start();
     }
 
     private void initLogger() {
@@ -99,14 +120,6 @@ public class Client {
         networkNode.broadcastTransaction(transaction);
     }
 
-    public Set<Block> getBlockchain() {
-        return blockchain;
-    }
-
-    public Set<TransactionRecord> getUnspentTransactions() {
-        return unspentTransactions;
-    }
-
     public void handleReceivedTransaction(Transaction transaction) {
         String logMessage = "I received a transaction from " + PublicKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
         logMessage = logMessage + "Number of inputs: " + transaction.getInputs().size() + "\n";
@@ -121,7 +134,21 @@ public class Client {
                 removeTransactionInputsFromUnspentSet(transaction.getInputs());
                 logMessage = logMessage + "The transaction is accepted and it will be added in a block.";
 
-                // todo: add in block
+                transactionsWithoutBlock.add(transaction);
+                // If the transaction is accepted, stop the proof of work thread, wait for it,
+                // add the new transaction and start it again
+                if (proofOfWorkInstance.accept(transaction)) {
+                    proofOfWorkInstance.stop();
+
+                    try {
+                        proofOfWorkThread.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    proofOfWorkInstance.addTransaction(transaction);
+                    startProofOfWorkThread();
+                }
             } else {
                 logMessage = logMessage + "The transaction has inputs that are already spend or are not addressed to the sender!";
             }
@@ -152,5 +179,23 @@ public class Client {
         for (TransactionRecord record : inputs) {
             unspentTransactions.remove(record);
         }
+    }
+
+    public void removeFromCandidateTransactions(List<Transaction> processed) {
+        for (Transaction transaction : processed) {
+            transactionsWithoutBlock.remove(transaction);
+        }
+    }
+
+    public Set<Block> getBlockchain() {
+        return blockchain;
+    }
+
+    public Set<TransactionRecord> getUnspentTransactions() {
+        return unspentTransactions;
+    }
+
+    public List<Transaction> getTransactionsWithoutBlock() {
+        return transactionsWithoutBlock;
     }
 }

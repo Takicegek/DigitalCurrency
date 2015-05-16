@@ -14,9 +14,70 @@ public class Block implements Serializable {
     private long nonce;
     private long height;
 
-    public Block(Block previousBlock, long height) {
+    public Block(Block previousBlock, List<Transaction> transactions) {
         this.previousBlock = previousBlock;
-        this.height = height;
+        this.transactions = transactions;
+        this.height = previousBlock.getHeight();
+    }
+
+    public Block(Block previousBlock) {
+        this.previousBlock = previousBlock;
+        this.height = previousBlock.getHeight() + 1;
         transactions = new ArrayList<>();
+    }
+
+    private Block() {
+        transactions = new ArrayList<>();
+        height = 0;
+    }
+
+    public static Block createGenesisBlock() {
+        return new Block();
+    }
+
+    public long getNonce() {
+        return nonce;
+    }
+
+    public void incrementNonce() {
+        nonce++;
+    }
+
+    public List<Transaction> getTransactions() {
+        return transactions;
+    }
+
+    public long getHeight() {
+        return height;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Block block = (Block) o;
+
+        if (height != block.height) return false;
+        if (nonce != block.nonce) return false;
+        if (previousBlock != null ? !previousBlock.equals(block.previousBlock) : block.previousBlock != null)
+            return false;
+        if (transactions != null ? !transactions.equals(block.transactions) : block.transactions != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = transactions != null ? transactions.hashCode() : 0;
+        result = 31 * result + (previousBlock != null ? previousBlock.hashCode() : 0);
+        result = 31 * result + (int) (nonce ^ (nonce >>> 32));
+        result = 31 * result + (int) (height ^ (height >>> 32));
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return nonce + " " + height + " " + previousBlock.toString() + " " + transactions.toString();
     }
 }

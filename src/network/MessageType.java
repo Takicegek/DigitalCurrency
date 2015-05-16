@@ -26,6 +26,7 @@ public enum MessageType {
     GET_BLOCKCHAIN, // ask the successor for the block chain and unspent transactions
 
     BROADCAST_TRANSACTION,
+    BROADCAST_BLOCK,
     BROADCAST_MESSAGE;
 
     private static Set<MessageType> answerNotNeeded = new HashSet<MessageType>() {
