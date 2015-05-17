@@ -86,7 +86,8 @@ public class Client {
             unspentTransactions.add(record);
         }
 
-        proofOfWorkInstance = new HashProofOfWork(this, networkNode);
+        Block lastBlock = Block.createGenesisBlock();
+        proofOfWorkInstance = new HashProofOfWork(this, networkNode, lastBlock);
         startProofOfWorkThread();
     }
 
@@ -120,6 +121,12 @@ public class Client {
         networkNode.broadcastTransaction(transaction);
     }
 
+    /**
+     * todo: question
+     * The method is run on a thread started in network.SocketListener. Is it correct to do this way?
+     * Same question for handleReceivedBlock.
+     * @param transaction
+     */
     public void handleReceivedTransaction(Transaction transaction) {
         String logMessage = "I received a transaction from " + PublicKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
         logMessage = logMessage + "Number of inputs: " + transaction.getInputs().size() + "\n";
@@ -157,6 +164,10 @@ public class Client {
         }
 
         transactionsLogger.info(logMessage);
+    }
+
+    public void handleReceivedBlock(Block block) {
+        System.out.println("I received a block!!!!!!" + block);
     }
 
     /**

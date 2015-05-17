@@ -1,5 +1,6 @@
 package network;
 
+import currency.Block;
 import currency.BlockchainAndTransactionsWrapper;
 import currency.Transaction;
 
@@ -102,6 +103,14 @@ public class SocketListenerMessageHandlingThread implements Runnable {
 
                 // send the wrapper further with the same type it was received
                 handleBroadcastMessage(wrapper, MessageType.BROADCAST_TRANSACTION);
+            }
+
+            if (message.getType() == MessageType.BROADCAST_BLOCK) {
+                BroadcastMessageWrapper wrapper = (BroadcastMessageWrapper) message.getObject();
+                correspondingNode.handleReceivedBlock((Block) wrapper.getMessage());
+
+                // send the wrapper further with the same type it was received
+                handleBroadcastMessage(wrapper, MessageType.BROADCAST_BLOCK);
             }
 
             if (message.getType() == MessageType.GET_BLOCKCHAIN) {

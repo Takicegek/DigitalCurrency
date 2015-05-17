@@ -39,6 +39,10 @@ public class HashProofOfWork implements ProofOfWork {
         }
 
         if (!externalStop) {
+            byte[] hash = hashCodeForBlock(block);
+            System.out.println(hash.length);
+            System.out.println("Am gasit valoarea pt nonce!! Nonce = " + block.getNonce() + ", hash = " + (int)hash[0] + " " + (int)hash[1] + " " + (int)hash[2] + " " + (int)hash[3]);
+
             // broadcast the block
             networkNode.broadcastBlock(block);
 
@@ -62,6 +66,7 @@ public class HashProofOfWork implements ProofOfWork {
             candidateTransactions.add(transactionsWithoutBlock.get(i));
         }
 
+        System.out.println("I will start the mining process again!");
         mine();
     }
 
@@ -81,30 +86,31 @@ public class HashProofOfWork implements ProofOfWork {
     }
 
     /**
-     * Computes the hash for the block and checks if the first two bytes are 0.
+     * Computes the hash for the block and checks if the first three bytes are 0.
      * @param block
      * @return
      */
     @Override
     public boolean verify(Block block) {
         byte[] hash = hashCodeForBlock(block);
-        return (hash[0] == 0 && hash[1] == 1);
+        return (hash[0] == 0 && hash[1] == 0 && hash[2] >= 0 && hash[2] <= 10);
     }
 
     private byte[] hashCodeForBlock(Block block) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            messageDigest.update(block.toString().getBytes());
+            messageDigest.update(block.stringForHash().getBytes());
             return messageDigest.digest();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-        return new String("123").getBytes();
+        return new String("12345").getBytes();
     }
 
     @Override
     public void stop() {
         externalStop = true;
+        System.out.println("External Stop encountered!");
     }
 
     @Override

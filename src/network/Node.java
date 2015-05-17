@@ -192,8 +192,12 @@ public class Node {
     }
 
 
-    public void handleReceivedTransaction(Transaction wrapper) {
-        client.handleReceivedTransaction(wrapper);
+    public void handleReceivedTransaction(Transaction transaction) {
+        client.handleReceivedTransaction(transaction);
+    }
+
+    public void handleReceivedBlock(Block block) {
+        client.handleReceivedBlock(block);
     }
 
     /**

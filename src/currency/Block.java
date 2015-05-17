@@ -76,8 +76,20 @@ public class Block implements Serializable {
         return result;
     }
 
+    public String stringForHash() {
+        if (previousBlock == null) {
+            return nonce + " " + height + " " + transactions.toString();
+        }
+        return nonce + " " + height + " " + previousBlock.toString() + " " + transactions.toString();
+    }
+
     @Override
     public String toString() {
-        return nonce + " " + height + " " + previousBlock.toString() + " " + transactions.toString();
+        return "Block{" +
+                "transactions=" + transactions +
+                ", previousBlock=" + previousBlock +
+                ", nonce=" + nonce +
+                ", height=" + height +
+                '}';
     }
 }
