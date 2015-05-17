@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A block in the blockchain.
+ * A block in the blockchain. It is identified by its nonce.
  * Created by Sorin Nutu on 4/19/2015.
  */
 public class Block implements Serializable {
@@ -17,7 +17,7 @@ public class Block implements Serializable {
     public Block(Block previousBlock, List<Transaction> transactions) {
         this.previousBlock = previousBlock;
         this.transactions = transactions;
-        this.height = previousBlock.getHeight();
+        this.height = previousBlock.getHeight() + 1;
     }
 
     public Block(Block previousBlock) {
@@ -29,6 +29,7 @@ public class Block implements Serializable {
     private Block() {
         transactions = new ArrayList<>();
         height = 0;
+        nonce = 0;
     }
 
     public static Block createGenesisBlock() {
@@ -49,6 +50,18 @@ public class Block implements Serializable {
 
     public long getHeight() {
         return height;
+    }
+
+    public Block getPreviousBlock() {
+        return previousBlock;
+    }
+
+    public boolean validateTransactionsInBlock() {
+        boolean validBlock = true;
+        for (int i = 0; i < transactions.size() && validBlock == true; i++) {
+            validBlock = validBlock & transactions.get(i).hasValidDigitalSignature();
+        }
+        return validBlock;
     }
 
     @Override

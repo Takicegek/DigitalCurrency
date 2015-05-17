@@ -246,7 +246,8 @@ public class Node {
 
     public BlockchainAndTransactionsWrapper getBlockchainAndTransactions() {
         return new BlockchainAndTransactionsWrapper(client.getUnspentTransactions(),
-                client.getBlockchain(), client.getTransactionsWithoutBlock());
+                client.getBlockchain(), client.getOrphanBlocks(),
+                client.getTransactionsWithoutBlock(), client.getLastBlockInChain());
     }
 
     private void dealWithClient(Socket client) {
