@@ -10,20 +10,16 @@ import java.util.List;
  */
 public class Block implements Serializable {
     private List<Transaction> transactions;
-    private Block previousBlock;
+    private int previousBlockHash;
+    private long previousBlockNonce;
     private long nonce;
     private long height;
 
-    public Block(Block previousBlock, List<Transaction> transactions) {
-        this.previousBlock = previousBlock;
+    public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight, List<Transaction> transactions) {
+        this.previousBlockHash = previousBlockHash;
+        this.previousBlockNonce = previousBlockNonce;
         this.transactions = transactions;
-        this.height = previousBlock.getHeight() + 1;
-    }
-
-    public Block(Block previousBlock) {
-        this.previousBlock = previousBlock;
-        this.height = previousBlock.getHeight() + 1;
-        transactions = new ArrayList<>();
+        this.height = previousBlockHeight + 1;
     }
 
     private Block() {
@@ -40,6 +36,10 @@ public class Block implements Serializable {
         return nonce;
     }
 
+    public long getPreviousBlockNonce() {
+        return previousBlockNonce;
+    }
+
     public void incrementNonce() {
         nonce++;
     }
@@ -52,8 +52,8 @@ public class Block implements Serializable {
         return height;
     }
 
-    public Block getPreviousBlock() {
-        return previousBlock;
+    public int getPreviousBlockHash() {
+        return previousBlockHash;
     }
 
     public boolean validateTransactionsInBlock() {
@@ -73,8 +73,7 @@ public class Block implements Serializable {
 
         if (height != block.height) return false;
         if (nonce != block.nonce) return false;
-        if (previousBlock != null ? !previousBlock.equals(block.previousBlock) : block.previousBlock != null)
-            return false;
+        if (previousBlockHash != block.previousBlockHash) return false;
         if (transactions != null ? !transactions.equals(block.transactions) : block.transactions != null) return false;
 
         return true;
@@ -83,24 +82,21 @@ public class Block implements Serializable {
     @Override
     public int hashCode() {
         int result = transactions != null ? transactions.hashCode() : 0;
-        result = 31 * result + (previousBlock != null ? previousBlock.hashCode() : 0);
+        result = 31 * result + previousBlockHash;
         result = 31 * result + (int) (nonce ^ (nonce >>> 32));
         result = 31 * result + (int) (height ^ (height >>> 32));
         return result;
     }
 
     public String stringForHash() {
-        if (previousBlock == null) {
-            return nonce + " " + height + " " + transactions.toString();
-        }
-        return nonce + " " + height + " " + previousBlock.toString() + " " + transactions.toString();
+        return nonce + " " + height + " " + previousBlockHash + " " + transactions.toString();
     }
 
     @Override
     public String toString() {
         return "Block{" +
                 "transactions=" + transactions +
-                ", previousBlock=" + previousBlock +
+                ", previousBlockHash=" + previousBlockHash +
                 ", nonce=" + nonce +
                 ", height=" + height +
                 '}';

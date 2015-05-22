@@ -29,7 +29,7 @@ public class HashProofOfWork implements ProofOfWork {
     public void mine() {
         boolean stop = false;
         externalStop = false;
-        Block block = new Block(previousBlock, candidateTransactions);
+        Block block = new Block(previousBlock.hashCode(), previousBlock.getNonce(), previousBlock.getHeight(), candidateTransactions);
         while (!stop && !externalStop) {
             if (verify(block)) {
                 stop = true;

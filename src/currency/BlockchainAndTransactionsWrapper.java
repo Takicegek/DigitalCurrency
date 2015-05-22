@@ -16,14 +16,14 @@ import java.util.Set;
  */
 public class BlockchainAndTransactionsWrapper implements Serializable {
     private Set<TransactionRecord> unspentTransactions;
-    private Map<Long, Block> blockchain;
-    private Map<Long, Block> orphanBlocks;
+    private Map<Integer, Block> blockchain;
+    private Map<Integer, Block> orphanBlocks;
     private List<Transaction> transactionsWithoutblock;
     private Block lastBlockInChain;
 
     public BlockchainAndTransactionsWrapper(Set<TransactionRecord> unspentTransactions,
-                                            Map<Long, Block> blockchain,
-                                            Map<Long, Block> orphanBlocks,
+                                            Map<Integer, Block> blockchain,
+                                            Map<Integer, Block> orphanBlocks,
                                             List<Transaction> transactionsWithoutblock,
                                             Block lastBlockInChain) {
         this.unspentTransactions = unspentTransactions;
@@ -41,11 +41,11 @@ public class BlockchainAndTransactionsWrapper implements Serializable {
         return unspentTransactions;
     }
 
-    public Map<Long, Block> getBlockchain() {
+    public Map<Integer, Block> getBlockchain() {
         return blockchain;
     }
 
-    public Map<Long, Block> getOrphanBlocks() {
+    public Map<Integer, Block> getOrphanBlocks() {
         return orphanBlocks;
     }
 
