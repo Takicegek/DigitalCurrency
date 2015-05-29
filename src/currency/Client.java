@@ -64,7 +64,7 @@ public class Client {
             transactionsWithoutBlock = new ArrayList<>();
 
             lastBlockInChain = Block.createGenesisBlock();
-            blockchain.put(0, lastBlockInChain);
+            blockchain.put(lastBlockInChain.hashCode(), lastBlockInChain);
 
             // create a fake transaction to introduce money in the network
             TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
@@ -172,11 +172,14 @@ public class Client {
     }
 
     public void handleReceivedBlock(Block block) {
-        System.out.println("I received a block!" + block);
-
+        String logMessage = "I received a block! Hash = " + block.hashCode() + ", height = " + block.getHeight() + "\n";
+        logMessage += "Previous block hash = " + block.getPreviousBlockHash() + ".\n";
+        logMessage += "Last block in chain height = " + lastBlockInChain.getHeight() + "\n";
+        transactionsLogger.info(logMessage);
         // validate the proof of work and check the signatures for the transactions in the block
-        // there is one more step that is deferred - verifying that there is no double spend
-        // this last step will be done when the block will be on the actual chain (now it is a leaf in a tree)
+        // there are two steps that are deferred - verifying that there is no double spend and that every
+        // input record in a transaction is sent to the transaction's initiator
+        // these last steps will be done when the block will be on the actual chain (now it is a leaf in a tree)
         if (PROOF_OF_WORK_VERIFIER.verify(block) && block.validateTransactionsInBlock()) {
             int previousId = block.getPreviousBlockHash();
             if (blockchain.containsKey(previousId)) {
@@ -187,6 +190,12 @@ public class Client {
                     if (verifyTransactionRecordsInBlock(block, unspentTransactions)) {
                         lastBlockInChain = block;
                         updateUnspentTransactions(block, unspentTransactions);
+
+                        transactionsLogger.info("The block with hash = " + block.hashCode() + " is right after the " +
+                                "former lastBlockInChain. New block height = " + block.getHeight());
+                    } else {
+                        transactionsLogger.info("The block with hash = " + block.hashCode() + " is right after the " +
+                                "lastBlockInChain but is is not accepted. Block height = " + lastBlockInChain.getHeight());
                     }
                 }
 
@@ -208,7 +217,7 @@ public class Client {
                     changeLastBlockInChain(block);
 
                     // create a new proofOfWorkInstance and start mining
-
+                    startProofOfWorkThread();
                 }
             } else {
                 orphanBlocks.put(block.hashCode(), block);
@@ -243,7 +252,11 @@ public class Client {
         changed = changeIfPossible(longerBlock);
 
         if (changed) {
-            System.out.println("The received block changed the block chain!");
+            transactionsLogger.info("The chain was changed. The last block in chain has nonce = " + longerBlock.getNonce() +
+                    ". New height = " + longerBlock.getHeight());
+        } else {
+            transactionsLogger.info("The attempt to change the chain failed! Last block in chain is still the one with" +
+                    "nonce = " + lastBlockInChain.getNonce() + " and height = " + lastBlockInChain.getHeight());
         }
     }
 

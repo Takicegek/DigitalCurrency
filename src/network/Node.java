@@ -177,6 +177,10 @@ public class Node {
         dispatcher.sendMessage(message, false, 0);
     }
 
+    /**
+     * Send the block to all the nodes, including the sender.
+     * @param block
+     */
     public void broadcastBlock(Block block) {
         long successorId = successor.getKey();
 
