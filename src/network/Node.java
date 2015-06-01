@@ -24,30 +24,34 @@ public class Node {
     protected static final long NUMBER_OF_NODES = 1 << LOG_NODES;
     protected static final long STORED_SUCCESSORS = 2;
 
-    private long id;
-    private int port;
-    private String ip;
-    private List<NodeInfo> fingerTable;
+    protected long id;
+    protected int port;
+    protected String ip;
+    protected List<NodeInfo> fingerTable;
     // the successor list is required to handle node failures
-    private List<Integer> bootstrapNodes;
-    private ServerSocket serverSocket;
+    protected List<Integer> bootstrapNodes;
+    protected ServerSocket serverSocket;
 
-    private NodeInfo predecessor;
-    private NodeInfo successor;
-    private NodeInfo nextSuccessor;
+    protected NodeInfo predecessor;
+    protected NodeInfo successor;
+    protected NodeInfo nextSuccessor;
 
-    private Dispatcher dispatcher;
+    protected Dispatcher dispatcher;
 
     // the network node needs to know about the client because other clients could ask for the block chain
-    private Client client;
+    protected Client client;
+
+    protected Node() {
+
+    }
 
     public Node(final String ip, final int port, Client client) {
-        bootstrapNodes = new ArrayList<Integer>();
+        bootstrapNodes = new ArrayList<>();
         bootstrapNodes.add(10000);
 
         this.client = client;
 
-        fingerTable = new ArrayList<NodeInfo>(LOG_NODES);
+        fingerTable = new ArrayList<>(LOG_NODES);
         dispatcher = new Dispatcher(this);
 
         // the identifier for this node in the ring
@@ -71,6 +75,10 @@ public class Node {
             fingerTable.add(new NodeInfo("localhost", -1, -1));
         }
 
+        startChordThreads(ip, port);
+    }
+
+    protected void startChordThreads(final String ip, final int port) {
         // run the SocketListener in a separate thread to handle incoming messages
         new Thread() {
             @Override
@@ -93,7 +101,7 @@ public class Node {
         new AskForSuccessorsThread(this, dispatcher).start();
     }
 
-    private NodeInfo findSuccessor(String ip, int port) {
+    protected NodeInfo findSuccessor(String ip, int port) {
         NodeInfo nodeInfo = null;
         try {
             boolean collision;
@@ -128,7 +136,7 @@ public class Node {
         return nodeInfo;
     }
 
-    private void listen(String ip, int port) {
+    protected void listen(String ip, int port) {
         try {
             serverSocket = new ServerSocket(port);
             System.out.println("Listening at port " + port + " . . . ");
@@ -230,7 +238,7 @@ public class Node {
      * @param finger
      * @return the received message
      */
-    private Message sendReliable(Message message, int finger)
+    protected Message sendReliable(Message message, int finger)
             throws ExecutionException, InterruptedException {
         boolean success = false;
         Future<Message> future;
@@ -254,7 +262,7 @@ public class Node {
                 client.getTransactionsWithoutBlock(), client.getLastBlockInChain());
     }
 
-    private void dealWithClient(Socket client) {
+    protected void dealWithClient(Socket client) {
         new Thread(new SocketListener(client, this, dispatcher)).start();
     }
 
