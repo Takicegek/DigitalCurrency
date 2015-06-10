@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 /**
  * Created by Sorin Nutu on 3/8/2015.
@@ -19,11 +20,13 @@ public class SocketListenerMessageHandlingThread implements Runnable {
     private Node correspondingNode;
     private ObjectOutputStream writer;
     private Dispatcher dispatcher;
+    private Logger networkLogger;
 
     public SocketListenerMessageHandlingThread(Message message, Node correspondingNode,
                                                ObjectOutputStream writer, Dispatcher dispatcher) {
         this.message = message;
         this.correspondingNode = correspondingNode;
+        this.networkLogger = correspondingNode.getNetworkLogger();
         this.writer = writer;
         this.dispatcher = dispatcher;
     }
@@ -70,7 +73,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                 } else {
                     writeAnswer(new Message(MessageType.SEND_PREDECESSOR, null, tag));
                 }
-                System.out.println("Raspund cu predecesorul meu: " + correspondingNode.getPredecessor());
+                networkLogger.info("Raspund cu predecesorul meu: " + correspondingNode.getPredecessor());
 
             }
 
@@ -121,7 +124,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
             }
 
         } catch (IOException e) {
-            System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket.");
+            networkLogger.info((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket.");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -138,7 +141,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         long start = wrapper.getStart();
         long end = wrapper.getEnd();
 
-        System.err.println("**Am primit un mesaj broadcast cu start = " + start + " si end = " + end);
+        networkLogger.info("**Am primit un mesaj broadcast cu start = " + start + " si end = " + end);
 
         long successorKey = correspondingNode.getFingerTable().get(0).getKey();
         if (successorKey == correspondingNode.getId()) {
@@ -161,14 +164,14 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                     wrapper.setEnd(end);
 
                     Message first = new Message(type, wrapper);
-                    System.err.println("**Il trimit doar spre succesor " + successorKey + " cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
+                    networkLogger.info("**Il trimit doar spre succesor " + successorKey + " cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + end);
                     dispatcher.sendMessage(first, false, 0);
                 } else {
                     // send a message to successor and one to the newly found finger
                     long fingerKey = correspondingNode.getFingerTable().get(finger).getKey();
 
-                    System.err.println("****Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey-1));
-                    System.err.println("****Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
+                    networkLogger.info("****Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey - 1));
+                    networkLogger.info("****Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
 
                     wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
                     wrapper.setEnd(fingerKey - 1);
@@ -184,8 +187,8 @@ public class SocketListenerMessageHandlingThread implements Runnable {
                 // send the message to the successor and to the finger
                 long fingerKey = correspondingNode.getFingerTable().get(finger).getKey();
 
-                System.err.println("**Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey-1));
-                System.err.println("**Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
+                networkLogger.info("**Il trimit spre succesor cu start = " + correspondingNode.getFingerTable().get(0).getKey() + " si end = " + (fingerKey - 1));
+                networkLogger.info("**Il trimit spre un finger cu start = " + fingerKey + " si end = " + end);
 
 
                 wrapper.setStart(correspondingNode.getFingerTable().get(0).getKey());
@@ -227,10 +230,6 @@ public class SocketListenerMessageHandlingThread implements Runnable {
             }
         }
 
-        if (finger == -1) {
-            System.out.println("Finger = -1 !!!!!!!!!!!!!!!!! start = " + start + ", end = " + end);
-        }
-
         return finger;
     }
 
@@ -247,11 +246,11 @@ public class SocketListenerMessageHandlingThread implements Runnable {
 
     private void handleNotifySuccessor(Message message) throws IOException {
         NodeInfo nodeInfo = (NodeInfo) message.getObject();
-        System.out.println((new Date()).toString() + " " + "My predecessor is " + nodeInfo.toString());
+        networkLogger.info((new Date()).toString() + " " + "My predecessor is " + nodeInfo.toString());
         if (correspondingNode.getPredecessor() == null || !correspondingNode.getPredecessor().equals(nodeInfo)) {
             correspondingNode.setPredecessor(nodeInfo);
 
-            System.out.println((new Date()).toString() + " " +correspondingNode.getId() + ": I have a new predecessor. It is " + nodeInfo.toString());
+            networkLogger.info((new Date()).toString() + " " + correspondingNode.getId() + ": I have a new predecessor. It is " + nodeInfo.toString());
         }
     }
 
@@ -264,14 +263,14 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         if (SocketListener.belongsToOpenInterval(id, correspondingNode.getId(), correspondingNode.getSuccessor().getKey())) {
             // the node is between this one and its successor, send the successor id
             answer = new Message(MessageType.SUCCESSOR_FOUND, correspondingNode.getSuccessor());
-            System.out.println((new Date()).toString() + " " +id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
-            System.out.println((new Date()).toString() + " " + "Its successor will be " + correspondingNode.getSuccessor());
+            networkLogger.info((new Date()).toString() + " " + id + " is between " + correspondingNode.getId() + " and my successor " + correspondingNode.getSuccessor().getKey());
+            networkLogger.info((new Date()).toString() + " " + "Its successor will be " + correspondingNode.getSuccessor());
         } else {
-            System.out.println((new Date()).toString() + " " +id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
+            networkLogger.info((new Date()).toString() + " " + id + " is NOT between " + correspondingNode.getId() + " and " + correspondingNode.getSuccessor().getKey());
 
             // find the closest preceding node
             int closestPreceding = closestPrecedingNode(id);
-            System.out.println((new Date()).toString() + " " +"Send the request further to " +
+            networkLogger.info((new Date()).toString() + " " + "Send the request further to " +
                     correspondingNode.getFingerTable().get(closestPreceding));
 
             // forward the message and retrieve it from the Future object
@@ -309,7 +308,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
             try {
                 writer.writeUnshared(message);
             } catch (IOException e) {
-                System.err.println("Could not send the answer back!");
+                networkLogger.info("Could not send the answer back!");
                 e.printStackTrace();
             }
         }

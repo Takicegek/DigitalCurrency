@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 /**
  * The dispatcher helps with multiplexing a communication channel between multiple threads.
@@ -23,6 +24,7 @@ public class Dispatcher {
     private AtomicInteger nextTag;
     private Map<Integer, FutureMessage> futures;
     private Node correspondingNode;
+    private Logger networkLogger;
     private Map<NodeInfo, MessageSenderThread> senderThreads;
     /*
         Store the messages that wait for an answer. When the connection with a NodeInfo is closed,
@@ -33,6 +35,7 @@ public class Dispatcher {
 
     public Dispatcher(Node correspondingNode) {
         this.correspondingNode = correspondingNode;
+        this.networkLogger = correspondingNode.getNetworkLogger();
         nextTag = new AtomicInteger(0);
         futures = new ConcurrentHashMap<Integer, FutureMessage>();
         senderThreads = new ConcurrentHashMap<NodeInfo, MessageSenderThread>();
@@ -88,7 +91,11 @@ public class Dispatcher {
 
         MessageSenderThread senderThread = senderThreads.get(destination);
 
-        System.err.println((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
+        if (networkLogger != null) {
+            networkLogger.info((new Date()).toString() + " " + "Trimit mesajul " + messageToSend + " catre " + destination.getKey() + " cu waitanswer = " + waitForAnswer);
+        } else {
+            networkLogger = correspondingNode.getNetworkLogger();
+        }
         senderThread.sendMessage(messageToSend);
 
         return futureMessage;
@@ -99,7 +106,11 @@ public class Dispatcher {
         FutureMessage futureMessage = futures.get(tag);
         futures.remove(tag);
 
-        System.err.println((new Date()).toString() + " " + "Am primit mesajul " + received);
+        if (networkLogger != null) {
+            networkLogger.info((new Date()).toString() + " " + "Am primit mesajul " + received);
+        } else {
+            networkLogger = correspondingNode.getNetworkLogger();
+        }
 
         // this also releases the semaphore and permits the message to be read
         futureMessage.setMessage(received);

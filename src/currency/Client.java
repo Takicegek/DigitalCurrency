@@ -20,17 +20,18 @@ import java.util.logging.SimpleFormatter;
  * Created by Sorin Nutu on 4/19/2015.
  */
 public class Client {
-    private Logger transactionsLogger;
+    protected Logger transactionsLogger;
     private Set<TransactionRecord> unspentTransactions;
     private List<Transaction> transactionsWithoutBlock;
     // store the blockchain indexed by blocks' nonces
     private Map<Integer, Block> blockchain;
     // received blocks that do not have a parent yet
     private Map<Integer, Block> orphanBlocks;
-    private double balance;
     // the current node in the peer to peer network
-    private Node networkNode;
-    private long id;
+    protected Node networkNode;
+    protected long id;
+    protected String ip;
+    protected int port;
     private PublicKey publicKey;
     private PrivateKey privateKey;
     private ProofOfWork proofOfWorkInstance;
@@ -40,9 +41,8 @@ public class Client {
     private final ProofOfWork PROOF_OF_WORK_VERIFIER = new HashProofOfWork(null, null, null);
 
     public Client(String ip, int port) {
-        networkNode = new Node(ip, port, this);
-        this.id = networkNode.getId();
-        initLogger();
+        this.ip = ip;
+        this.port = port;
 
         KeyPairGenerator generator;
         try {
@@ -53,8 +53,11 @@ public class Client {
         KeyPair pair = generator.generateKeyPair();
         publicKey = pair.getPublic();
         System.out.println("My address is " + PublicKeyUtils.getAddress(publicKey));
-        transactionsLogger.info("My address is " + PublicKeyUtils.getAddress(publicKey));
         privateKey = pair.getPrivate();
+    }
+
+    public void connectToNetwork() {
+        initNode(ip, port);
 
         if (port == 10000) { // todo change the condition
             // create the block chain and add the initial block
@@ -88,12 +91,18 @@ public class Client {
 
             // create a fake transaction to introduce money in the network (this should be removed and left only
             // for the bootstrap node) !!
-            TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
-            unspentTransactions.add(record);
+            /*TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
+            unspentTransactions.add(record);*/
         }
 
         proofOfWorkInstance = new HashProofOfWork(this, networkNode, lastBlockInChain);
         startProofOfWorkThread();
+    }
+
+    protected void initNode(String ip, int port) {
+        networkNode = new Node(ip, port, this);
+        this.id = networkNode.getId();
+        initLogger();
     }
 
     /**
@@ -106,7 +115,7 @@ public class Client {
         proofOfWorkThread.start();
     }
 
-    private void initLogger() {
+    protected void initLogger() {
         try {
             transactionsLogger = Logger.getLogger("transactions-" + id);
             Handler fileHandler = new FileHandler("./logs/transactions-" + id + ".log", true);
@@ -122,12 +131,21 @@ public class Client {
         }
     }
 
+    public double getBalance() {
+        double balance = 0;
+        for (TransactionRecord x : unspentTransactions) {
+            if (x.getRecipient().equals(publicKey)) {
+                balance += x.getAmount();
+            }
+        }
+        return balance;
+    }
+
     public void broadcastTransaction(Transaction transaction) {
         networkNode.broadcastTransaction(transaction);
     }
 
     /**
-     * todo: question
      * The method is run on a thread started in network.SocketListener. Is it correct to do this way?
      * Same question for handleReceivedBlock.
      * @param transaction
@@ -168,7 +186,14 @@ public class Client {
             logMessage = logMessage + "The transaction does not have a valid digital signature!";
         }
 
+        storeReceivedTransaction(transaction);
         transactionsLogger.info(logMessage);
+    }
+
+    protected void storeReceivedTransaction(Transaction transaction) {
+    }
+
+    protected void storeReceivedBlock(Block block) {
     }
 
     public void handleReceivedBlock(Block block) {
@@ -223,6 +248,7 @@ public class Client {
                 orphanBlocks.put(block.hashCode(), block);
             }
         }
+        storeReceivedBlock(block);
     }
 
 
@@ -501,5 +527,13 @@ public class Client {
 
     public Map<Integer, Block> getOrphanBlocks() {
         return orphanBlocks;
+    }
+
+    public PublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    public PrivateKey getPrivateKey() {
+        return privateKey;
     }
 }

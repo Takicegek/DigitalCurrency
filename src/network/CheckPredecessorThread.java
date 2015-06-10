@@ -2,6 +2,7 @@ package network;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 /**
  * A thread that periodically checks if the predecessor is alive. If it cannot receive messages,
@@ -14,29 +15,31 @@ import java.util.concurrent.Future;
 public class CheckPredecessorThread extends Thread {
     private Node correspondingNode;
     private Dispatcher dispatcher;
+    private Logger networkLogger;
 
     public CheckPredecessorThread(Node correspondingNode, Dispatcher dispatcher) {
         this.correspondingNode = correspondingNode;
+        this.networkLogger = correspondingNode.getNetworkLogger();
         this.dispatcher = dispatcher;
     }
 
     @Override
     public void run() {
-        System.out.println("Check Predecessor Thread started!");
+        networkLogger.info("Check Predecessor Thread started!");
         while (true) {
-            System.out.println("Check predecessor, the current is: " + correspondingNode.getPredecessor());
+            networkLogger.info("Check predecessor, the current is: " + correspondingNode.getPredecessor());
             if (correspondingNode.getPredecessor() != null && !correspondingNode.getPredecessor().
                     equals(correspondingNode.getNodeInfo())) {
                 Message message = new Message(MessageType.CHECK_PREDECESSOR, null);
                 Future<Message> future = dispatcher.sendMessage(message, false, correspondingNode.getPredecessor());
 
                 try {
-                    System.out.println("Astept mesajul de la predecesor.");
+                    networkLogger.info("Astept mesajul de la predecesor.");
                     Message answer = future.get();
                     if (answer.getType() == MessageType.RETRY) {
                         correspondingNode.setPredecessor(null);
                     }
-                    System.out.println("Predecesorul meu este " + correspondingNode.getPredecessor() + " si mesajul este " + answer.getType());
+                    networkLogger.info("Predecesorul meu este " + correspondingNode.getPredecessor() + " si mesajul este " + answer.getType());
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (ExecutionException e) {

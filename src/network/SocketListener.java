@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Created by Sorin Nutu on 2/17/2015.
@@ -19,11 +20,13 @@ public class SocketListener implements Runnable {
     private ObjectOutputStream writer;
     private Node correspondingNode;
     private Dispatcher dispatcher;
-    ThreadPoolExecutor executor;
+    private ThreadPoolExecutor executor;
+    private Logger networkLogger;
 
     public SocketListener(Socket client, Node correspondingNode, Dispatcher dispatcher) {
         this.client = client;
         this.correspondingNode = correspondingNode;
+        this.networkLogger = correspondingNode.getNetworkLogger();
         try {
             reader = new ObjectInputStream(client.getInputStream());
             writer = new ObjectOutputStream(client.getOutputStream());
@@ -43,7 +46,7 @@ public class SocketListener implements Runnable {
             while((messageObject = reader.readObject()) != null) {
                 Message message = (Message) messageObject;
 
-                System.err.println("Am primit in SocketListener:" + message);
+                networkLogger.info("Am primit in SocketListener:" + message);
 
                 // handle the message in a separate thread, so the caller should not wait until the current
                 // message is entirely processed
@@ -53,7 +56,7 @@ public class SocketListener implements Runnable {
 
             }
         } catch (IOException e) {
-            System.out.println((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket." + client.getPort() + " " + client.getLocalPort());
+            networkLogger.info((new Date()).toString() + " " + correspondingNode.getId() + ": Lost contact with a node that closed the socket." + client.getPort() + " " + client.getLocalPort());
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }

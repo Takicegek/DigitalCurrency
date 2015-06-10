@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 /**
  * This class represents a thread that refreshed the finger table for a node.
@@ -21,11 +22,13 @@ public class FixFingersThread extends Thread {
     private int next;
     private Node correspondingNode;
     private Dispatcher dispatcher;
+    private Logger networkLogger;
 
     public FixFingersThread(Dispatcher dispatcher, long currentNodeId, Node correspondingNode) {
         this.dispatcher = dispatcher;
         this.currentNodeId = currentNodeId;
         this.correspondingNode = correspondingNode;
+        this.networkLogger = correspondingNode.getNetworkLogger();
         next = 0;
     }
 
@@ -36,8 +39,8 @@ public class FixFingersThread extends Thread {
             if (next >= Node.LOG_NODES) {
                 next = 1;
             }
-            System.out.println(currentNodeId + ": Fixing finger: " + next);
-            System.out.println(currentNodeId + ": Current value of finger: " + correspondingNode.getFingerTable().get(next));
+            networkLogger.info(currentNodeId + ": Fixing finger: " + next);
+            networkLogger.info(currentNodeId + ": Current value of finger: " + correspondingNode.getFingerTable().get(next));
 
             try {
                 // prepare the streams to send the message to the successor
@@ -60,21 +63,21 @@ public class FixFingersThread extends Thread {
                     if (received.getType() != MessageType.RETRY) {
                         NodeInfo nodeInfo = (NodeInfo) received.getObject();
 
-                        System.out.println("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
+                        networkLogger.info("Finger " + next + " = " + fingerId + "  == " + nodeInfo.getKey());
 
                         // check if the found finger is already present in the table
                         if (!correspondingNode.getFingerTable().get(next).equals(nodeInfo)) {
 
-                            System.out.println(correspondingNode.getFingerTable().get(next).toString() + " nu e egal cu " + nodeInfo.toString());
+                            networkLogger.info(correspondingNode.getFingerTable().get(next).toString() + " nu e egal cu " + nodeInfo.toString());
 
                             // replace the finger
                             correspondingNode.getFingerTable().remove(next);
                             correspondingNode.getFingerTable().add(next, nodeInfo);
 
-                            System.out.println("Finger " + next + " == " + nodeInfo);
+                            networkLogger.info("Finger " + next + " == " + nodeInfo);
                         }
 
-                        System.out.println(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
+                        networkLogger.info(currentNodeId + ": Fixed the fingertable on position + " + next + ". It points to " + nodeInfo.getKey() + ".");
                     }
                 }
             } catch (InterruptedException e) {

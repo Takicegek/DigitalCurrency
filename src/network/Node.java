@@ -11,6 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * Represents a network node.
@@ -19,7 +23,6 @@ import java.util.concurrent.Future;
  * Created by Sorin Nutu on 2/16/2015.
  */
 public class Node {
-
     protected static final int LOG_NODES = 10;
     protected static final long NUMBER_OF_NODES = 1 << LOG_NODES;
     protected static final long STORED_SUCCESSORS = 2;
@@ -37,9 +40,10 @@ public class Node {
     protected NodeInfo nextSuccessor;
 
     protected Dispatcher dispatcher;
-
     // the network node needs to know about the client because other clients could ask for the block chain
     protected Client client;
+
+    protected Logger networkLogger;
 
     protected Node() {
 
@@ -56,7 +60,9 @@ public class Node {
 
         // the identifier for this node in the ring
         id = (long) ((Math.random() * NUMBER_OF_NODES));
-        System.out.println("Am id-ul " + id);
+        initLogger();
+
+        networkLogger.info("Am id-ul " + id);
         this.ip = ip;
         this.port = port;
 
@@ -64,7 +70,7 @@ public class Node {
             successor = new NodeInfo(ip, port, id);
         } else {
             successor = findSuccessor(ip, 10000);
-            System.out.println(id + ": My successor is " + successor.getKey());
+            networkLogger.info(id + ": My successor is " + successor.getKey());
 
             dispatcher.sendMessage(new Message(MessageType.NOTIFY_SUCCESSOR, getNodeInfo()), false, successor);
         }
@@ -122,7 +128,6 @@ public class Node {
                     // the message body is null so the id is already in use
                     collision = true;
                     id = (long) ((Math.random() * NUMBER_OF_NODES));
-                    System.out.println("Coliziune. Noul id: " + id);
                     message.setObject(id);
                 }
             } while (collision == true);
@@ -139,7 +144,6 @@ public class Node {
     protected void listen(String ip, int port) {
         try {
             serverSocket = new ServerSocket(port);
-            System.out.println("Listening at port " + port + " . . . ");
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -149,7 +153,6 @@ public class Node {
             Socket client;
             try {
                 client = serverSocket.accept();
-                System.out.println("PORNESC UN LISTENER PENTRU " + client.getRemoteSocketAddress().toString());
                 dealWithClient(client);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -262,6 +265,20 @@ public class Node {
                 client.getTransactionsWithoutBlock(), client.getLastBlockInChain());
     }
 
+    protected void initLogger() {
+        try {
+            networkLogger = Logger.getLogger("node-" + id);
+            Handler fileHandler = new FileHandler("./logs/network-node-" + id + ".log", true);
+            fileHandler.setFormatter(new SimpleFormatter());
+
+            networkLogger.addHandler(fileHandler);
+            // do not print to console
+            networkLogger.setUseParentHandlers(false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     protected void dealWithClient(Socket client) {
         new Thread(new SocketListener(client, this, dispatcher)).start();
     }
@@ -308,5 +325,9 @@ public class Node {
 
     public void setNextSuccessor(NodeInfo nextSuccessor) {
         this.nextSuccessor = nextSuccessor;
+    }
+
+    public Logger getNetworkLogger() {
+        return networkLogger;
     }
 }

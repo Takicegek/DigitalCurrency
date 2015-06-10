@@ -14,6 +14,10 @@ import java.util.List;
 public class MockedNode extends Node {
     private List<String> receivedBroadcastMessages;
 
+    public MockedNode(String ip, int port, Client client) {
+        super(ip, port, client);
+    }
+
     public MockedNode(String ip, int port, long id, Client client) {
         bootstrapNodes = new ArrayList<>();
         bootstrapNodes.add(10000);
@@ -29,11 +33,13 @@ public class MockedNode extends Node {
         this.ip = ip;
         this.port = port;
 
+        initLogger();
+
         if (bootstrapNodes.contains(port)) {
             successor = new NodeInfo(ip, port, id);
         } else {
             successor = findSuccessor(ip, 10000);
-            System.out.println(id + ": My successor is " + successor.getKey());
+            networkLogger.info(id + ": My successor is " + successor.getKey());
 
             dispatcher.sendMessage(new Message(MessageType.NOTIFY_SUCCESSOR, getNodeInfo()), false, successor);
         }
