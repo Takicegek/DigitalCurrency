@@ -87,7 +87,8 @@ public class Client {
                 logMessage = logMessage + "Transaction: " + t.getAmount() + "\n";
             }
             logMessage = logMessage + "There are " + transactionsWithoutBlock.size() + " transactions without a block.\n";
-            transactionsLogger.info(logMessage);
+//            transactionsLogger.info(logMessage);
+            System.out.println(logMessage);
 
             // create a fake transaction to introduce money in the network (this should be removed and left only
             // for the bootstrap node) !!
@@ -187,7 +188,8 @@ public class Client {
         }
 
         storeReceivedTransaction(transaction);
-        transactionsLogger.info(logMessage);
+//        transactionsLogger.info(logMessage);
+        System.out.println(logMessage);
     }
 
     protected void storeReceivedTransaction(Transaction transaction) {
@@ -197,10 +199,10 @@ public class Client {
     }
 
     public void handleReceivedBlock(Block block) {
-        String logMessage = "I received a block! Hash = " + block.hashCode() + ", height = " + block.getHeight() + "\n";
+        String logMessage = "Node " + networkNode.getId() + ": I received a block! It was mined by node " + block.getMinerId() + ". Hash = " + block.hashCode() + ", height = " + block.getHeight() + "\n";
         logMessage += "Previous block hash = " + block.getPreviousBlockHash() + ".\n";
         logMessage += "Last block in chain height = " + lastBlockInChain.getHeight() + "\n";
-        transactionsLogger.info(logMessage);
+
         // validate the proof of work and check the signatures for the transactions in the block
         // there are two steps that are deferred - verifying that there is no double spend and that every
         // input record in a transaction is sent to the transaction's initiator
@@ -216,11 +218,11 @@ public class Client {
                         lastBlockInChain = block;
                         updateUnspentTransactions(block, unspentTransactions);
 
-                        transactionsLogger.info("The block with hash = " + block.hashCode() + " is right after the " +
-                                "former lastBlockInChain. New block height = " + block.getHeight());
+                        logMessage += "The block with hash = " + block.hashCode() + " is right after the " +
+                                "former lastBlockInChain. New block height = " + block.getHeight() + "\n";
                     } else {
-                        transactionsLogger.info("The block with hash = " + block.hashCode() + " is right after the " +
-                                "lastBlockInChain but is is not accepted. Block height = " + lastBlockInChain.getHeight());
+                        logMessage += "The block with hash = " + block.hashCode() + " is right after the " +
+                                "lastBlockInChain but is is not accepted. Block height = " + lastBlockInChain.getHeight() + "\n";
                     }
                 }
 
@@ -245,9 +247,14 @@ public class Client {
                     startProofOfWorkThread();
                 }
             } else {
+                logMessage += "This is an orphan block.\n";
                 orphanBlocks.put(block.hashCode(), block);
             }
+        } else {
+            logMessage += "The block is not valid.\n";
         }
+        System.out.println(logMessage);
+//        transactionsLogger.info(logMessage);
         storeReceivedBlock(block);
     }
 

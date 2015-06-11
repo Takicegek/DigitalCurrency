@@ -14,12 +14,15 @@ public class Block implements Serializable {
     private long previousBlockNonce;
     private long nonce;
     private long height;
+    private long minerId;
 
-    public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight, List<Transaction> transactions) {
+    public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight,
+                 List<Transaction> transactions, long minerId) {
         this.previousBlockHash = previousBlockHash;
         this.previousBlockNonce = previousBlockNonce;
         this.transactions = transactions;
         this.height = previousBlockHeight + 1;
+        this.minerId = minerId;
     }
 
     private Block() {
@@ -62,6 +65,10 @@ public class Block implements Serializable {
             validBlock = validBlock & transactions.get(i).hasValidDigitalSignature();
         }
         return validBlock;
+    }
+
+    public long getMinerId() {
+        return minerId;
     }
 
     @Override

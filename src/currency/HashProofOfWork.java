@@ -29,7 +29,8 @@ public class HashProofOfWork implements ProofOfWork {
     public void mine() {
         boolean stop = false;
         externalStop = false;
-        Block block = new Block(previousBlock.hashCode(), previousBlock.getNonce(), previousBlock.getHeight(), candidateTransactions);
+        Block block = new Block(previousBlock.hashCode(), previousBlock.getNonce(), previousBlock.getHeight(),
+                candidateTransactions, networkNode.getId());
         while (!stop && !externalStop) {
             if (verify(block)) {
                 stop = true;
@@ -39,9 +40,8 @@ public class HashProofOfWork implements ProofOfWork {
         }
 
         if (!externalStop) {
-            byte[] hash = hashCodeForBlock(block);
-            System.out.println(hash.length);
-            System.out.println("Am gasit valoarea pt nonce!! Nonce = " + block.getNonce() + ", hash = " + (int)hash[0] + " " + (int)hash[1] + " " + (int)hash[2] + " " + (int)hash[3]);
+            System.out.println("Nodul " + networkNode.getId() + ": Am gasit valoarea pt nonce!! Nonce = " + block.getNonce() + ", hash = " + block.hashCode());
+            System.out.println("Blockul are " + block.getTransactions().size() + " tranzactii.");
 
             // broadcast the block
             networkNode.broadcastBlock(block);
