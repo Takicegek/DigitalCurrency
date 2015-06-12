@@ -181,8 +181,7 @@ public class Node {
     public void broadcastTransaction(Transaction transaction) {
         long successorId = successor.getKey();
 
-        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
-                (id + NUMBER_OF_NODES) % NUMBER_OF_NODES, transaction);
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId, id, transaction);
         Message message = new Message(MessageType.BROADCAST_TRANSACTION, wrapper);
 
         dispatcher.sendMessage(message, false, 0);
@@ -195,8 +194,7 @@ public class Node {
     public void broadcastBlock(Block block) {
         long successorId = successor.getKey();
 
-        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
-                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, block);
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId, id, block);
         Message message = new Message(MessageType.BROADCAST_BLOCK, wrapper);
 
         dispatcher.sendMessage(message, false, 0);

@@ -219,13 +219,13 @@ public class Client {
                     if (verifyTransactionRecordsInBlock(block, unspentTransactions)) {
                         lastBlockInChain = block;
 
+                        logMessage += "Before update: The node has " + unspentTransactions.size() + " unspent transactions!\n";
                         updateUnspentTransactions(block, unspentTransactions);
+                        logMessage += "After update: The node has " + unspentTransactions.size() + " unspent transactions!\n";
 
                         stopProofOfWorkThread();
 
-                        logMessage += "Before update: The node has " + transactionsWithoutBlock.size() + " transactions witout block!\n";
                         updateTransactionsWithoutBlock(block, transactionsWithoutBlock);
-                        logMessage += "After update: The node has " + transactionsWithoutBlock.size() + " transactions witout block!\n";
 
                         startProofOfWorkThread();
 
