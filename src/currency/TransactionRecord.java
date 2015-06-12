@@ -1,5 +1,7 @@
 package currency;
 
+import currency.utils.PublicAndPrivateKeyUtils;
+
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -39,8 +41,8 @@ public class TransactionRecord implements Serializable {
         TransactionRecord record = (TransactionRecord) o;
 
         if (Double.compare(record.amount, amount) != 0) return false;
-        if (recipient != record.recipient) return false;
-        if (sender != record.sender) return false;
+        if (!recipient.equals(record.recipient)) return false;
+        if (!sender.equals(record.sender)) return false;
 
         return true;
     }
@@ -54,5 +56,14 @@ public class TransactionRecord implements Serializable {
         temp = Double.doubleToLongBits(amount);
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "TransactionRecord{" +
+                "sender=" + PublicAndPrivateKeyUtils.getAddress(sender) +
+                ", recipient=" + PublicAndPrivateKeyUtils.getAddress(recipient) +
+                ", amount=" + amount +
+                '}';
     }
 }

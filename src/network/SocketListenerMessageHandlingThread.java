@@ -151,7 +151,7 @@ public class SocketListenerMessageHandlingThread implements Runnable {
         }
 
         // send the message further only if the successor is in the given interval
-        if (SocketListener.belongsToClosedInterval(successorKey, start, end)) {
+        if (SocketListener.belongsToIntervalForBroadcast(successorKey, start, end)) {
             int finger = getFingerForBroadcast(start, end);
 
             // if the closest finger to the middle is the same with successor, find another one

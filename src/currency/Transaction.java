@@ -1,5 +1,7 @@
 package currency;
 
+import currency.utils.PublicAndPrivateKeyUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -49,7 +51,7 @@ public class Transaction implements Serializable {
      * @return true if the digital signature is valid
      */
     public boolean hasValidDigitalSignature() {
-        boolean validSignature = false;
+        boolean validSignature;
         try {
             byte[] data = transformToByteArray(this);
             Signature sig = Signature.getInstance("SHA1withRSA");
@@ -137,7 +139,7 @@ public class Transaction implements Serializable {
                 if (record.getRecipient().equals(senderPublicKey)) {
                     spentAmount += record.getAmount();
                     inputs.add(record);
-                    iterator.remove();
+//                    iterator.remove(); // this is not needed; the unspent transactions will be modified only when dealing with blocks
                 }
                 if (spentAmount >= totalSpentAmount) {
                     break;
@@ -209,7 +211,7 @@ public class Transaction implements Serializable {
     @Override
     public String toString() {
         return "Transaction{" +
-                "senderPublicKey=" + senderPublicKey +
+                "senderPublicKey=" + PublicAndPrivateKeyUtils.getAddress(senderPublicKey) +
                 ", outputs=" + outputs +
                 ", inputs=" + inputs +
                 '}';

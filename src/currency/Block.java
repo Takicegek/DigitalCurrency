@@ -16,11 +16,10 @@ public class Block implements Serializable {
     private long height;
     private long minerId;
 
-    public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight,
-                 List<Transaction> transactions, long minerId) {
+    public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight, long minerId) {
         this.previousBlockHash = previousBlockHash;
         this.previousBlockNonce = previousBlockNonce;
-        this.transactions = transactions;
+        this.transactions = new ArrayList<>();
         this.height = previousBlockHeight + 1;
         this.minerId = minerId;
     }
@@ -51,6 +50,14 @@ public class Block implements Serializable {
         return transactions;
     }
 
+    public int transactionCount() {
+        return transactions.size();
+    }
+
+    public void addTransaction(Transaction transaction) {
+        transactions.add(transaction);
+    }
+
     public long getHeight() {
         return height;
     }
@@ -79,6 +86,7 @@ public class Block implements Serializable {
         Block block = (Block) o;
 
         if (height != block.height) return false;
+        if (minerId != block.minerId) return false;
         if (nonce != block.nonce) return false;
         if (previousBlockHash != block.previousBlockHash) return false;
         if (transactions != null ? !transactions.equals(block.transactions) : block.transactions != null) return false;
@@ -96,7 +104,7 @@ public class Block implements Serializable {
     }
 
     public String stringForHash() {
-        return nonce + " " + height + " " + previousBlockHash + " " + transactions.toString();
+        return nonce + " " + height + " " + minerId + " " + previousBlockHash + " " + transactions.toString();
     }
 
     @Override
@@ -104,6 +112,7 @@ public class Block implements Serializable {
         return "Block{" +
                 "transactions=" + transactions +
                 ", previousBlockHash=" + previousBlockHash +
+                ", minerId=" + minerId +
                 ", nonce=" + nonce +
                 ", height=" + height +
                 '}';

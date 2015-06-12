@@ -1,21 +1,32 @@
 package currency.utils;
 
+import sun.security.rsa.RSAPrivateKeyImpl;
 import sun.security.rsa.RSAPublicKeyImpl;
 
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 
 /**
  * Created by Sorin Nutu on 4/24/2015.
  */
-public class PublicKeyUtils {
+public class PublicAndPrivateKeyUtils {
     public static String getAddress(PublicKey publicKey) {
         if (publicKey instanceof RSAPublicKeyImpl) {
             RSAPublicKeyImpl rsaPublicKey = (RSAPublicKeyImpl) publicKey;
             return rsaPublicKey.getModulus() + "#" + rsaPublicKey.getPublicExponent();
         } else {
             throw new RuntimeException("The public key is not a RSAPublicKeyImpl.");
+        }
+    }
+
+    public static String getAddress(PrivateKey privateKey) {
+        if (privateKey instanceof RSAPrivateKeyImpl) {
+            RSAPrivateKeyImpl rsaPrivateKey = (RSAPrivateKeyImpl) privateKey;
+            return rsaPrivateKey.getModulus() + "#" + rsaPrivateKey.getPrivateExponent();
+        } else {
+            throw new RuntimeException("The private key is not a RSAPrivateKeyImpl.");
         }
     }
 

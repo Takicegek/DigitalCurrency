@@ -182,7 +182,7 @@ public class Node {
         long successorId = successor.getKey();
 
         BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
-                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, transaction);
+                (id + NUMBER_OF_NODES) % NUMBER_OF_NODES, transaction);
         Message message = new Message(MessageType.BROADCAST_TRANSACTION, wrapper);
 
         dispatcher.sendMessage(message, false, 0);

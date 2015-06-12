@@ -11,45 +11,49 @@ import java.util.List;
  * Created by Sorin Nutu on 5/8/2015.
  */
 public class HashProofOfWork implements ProofOfWork {
-    private List<Transaction> candidateTransactions;
-    private Block previousBlock;
+    private Block currentBlock;
     private Node networkNode;
     private Client client;
     private boolean externalStop;
     private int limit = 5;
 
-    public HashProofOfWork(Client client, Node networkNode, Block previousBlock) {
-        this.networkNode = networkNode;
+    public HashProofOfWork(Client client) {
+        if (client != null) {
+            this.networkNode = client.getNetworkNode();
+        }
         this.client = client;
-        candidateTransactions = new ArrayList<>();
-        this.previousBlock = previousBlock;
     }
 
     @Override
     public void mine() {
         boolean stop = false;
         externalStop = false;
-        Block block = new Block(previousBlock.hashCode(), previousBlock.getNonce(), previousBlock.getHeight(),
-                candidateTransactions, networkNode.getId());
+
+        System.out.println("Node " + networkNode.getId() + ": Started mining a block with " + currentBlock.transactionCount() + " transactions.\n");
         while (!stop && !externalStop) {
-            if (verify(block)) {
+            if (verify(currentBlock)) {
                 stop = true;
             } else {
-                block.incrementNonce();
+                currentBlock.incrementNonce();
+                if (currentBlock.getNonce() % 10000 == 0) {
+                    System.out.println("Nodul " + networkNode.getId() + ": nonce = " + currentBlock.getNonce());
+                }
             }
         }
 
         if (!externalStop) {
-            System.out.println("Nodul " + networkNode.getId() + ": Am gasit valoarea pt nonce!! Nonce = " + block.getNonce() + ", hash = " + block.hashCode());
-            System.out.println("Blockul are " + block.getTransactions().size() + " tranzactii.");
+            System.out.println("Nodul " + networkNode.getId() + ": Am gasit valoarea pt nonce!! Nonce = " + currentBlock.getNonce() + ", hash = " + currentBlock.hashCode());
+            System.out.println("Blockul are " + currentBlock.getTransactions().size() + " tranzactii.");
+            byte[] hash = hashCodeForBlock(currentBlock);
+            System.out.println("Hash = " + hash[0] + " " + hash[1] + " " + hash[2] + " " + hash[3]);
+            System.out.println(currentBlock.stringForHash());
 
             // broadcast the block
-            networkNode.broadcastBlock(block);
+            networkNode.broadcastBlock(currentBlock);
+            System.out.println("Nodul " + networkNode.getId() + ": Am facut broadcast la un block cu tranzactii = " + currentBlock.getTransactions().size());
 
-            // remove the transactions embedded in this block from candidate transactions
-            client.removeFromCandidateTransactions(candidateTransactions);
-
-            prepareMining(block);
+//            do not continue to mine; the process will start again when the node handles the block
+//            prepareMining();
         }
     }
 
@@ -57,28 +61,31 @@ public class HashProofOfWork implements ProofOfWork {
      * Repopulates the candidate transactions, changes the previous block and starts to find a new
      * proof of work.
      */
-    private void prepareMining(Block previous) {
-        previousBlock = previous;
-        candidateTransactions.clear();
-
+    private void prepareMining() {
+        Block previousBlock = client.getLastBlockInChain();
+        currentBlock = new Block(previousBlock.hashCode(), previousBlock.getNonce(),
+                previousBlock.getHeight(), networkNode.getId());
         List<Transaction> transactionsWithoutBlock = client.getTransactionsWithoutBlock();
+        System.out.println("Nodul " + networkNode.getId() + ": Am " + transactionsWithoutBlock.size() + " tranzactii fara block!");
         for (int i = 0; i < transactionsWithoutBlock.size() && i < limit; i++) {
-            candidateTransactions.add(transactionsWithoutBlock.get(i));
+            currentBlock.addTransaction(transactionsWithoutBlock.get(i));
         }
 
-        System.out.println("I will start the mining process again!");
-        mine();
+        System.out.println("I will start the mining process again if there are enough transactions!");
+        if (currentBlock.transactionCount() > 0) {
+            mine();
+        }
     }
 
     @Override
     public boolean accept(Transaction transaction) {
-        return candidateTransactions.size() < limit;
+        return currentBlock.transactionCount() < limit;
     }
 
     @Override
     public boolean addTransaction(Transaction transaction) {
         if (accept(transaction)) {
-            candidateTransactions.add(transaction);
+            currentBlock.addTransaction(transaction);
             return true;
         } else {
             return false;
@@ -93,18 +100,21 @@ public class HashProofOfWork implements ProofOfWork {
     @Override
     public boolean verify(Block block) {
         byte[] hash = hashCodeForBlock(block);
-        return (hash[0] == 0 && hash[1] == 0 && hash[2] >= 0 && hash[2] <= 10);
+        return (hash[0] == 0 && hash[1] >= 0 && hash[1] <= 40);
     }
 
-    private byte[] hashCodeForBlock(Block block) {
+    protected byte[] hashCodeForBlock(Block block) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            messageDigest.update(block.stringForHash().getBytes());
+            // the string generated by stringForHash method is large when there are many transactions, so hash it before sha256
+//            messageDigest.update(("" + block.stringForHash().hashCode()).getBytes());
+            String p = block.stringForHash();
+            messageDigest.update(p.substring(0, 10).getBytes());
             return messageDigest.digest();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
+            return "".getBytes();
         }
-        return new String("12345").getBytes();
     }
 
     @Override
@@ -115,6 +125,6 @@ public class HashProofOfWork implements ProofOfWork {
 
     @Override
     public void run() {
-        mine();
+        prepareMining();
     }
 }

@@ -1,6 +1,6 @@
 package currency;
 
-import currency.utils.PublicKeyUtils;
+import currency.utils.PublicAndPrivateKeyUtils;
 import network.Node;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class Client {
     private Thread proofOfWorkThread;
     // a leaf in the blockchain - defines the client's state
     private Block lastBlockInChain;
-    private final ProofOfWork PROOF_OF_WORK_VERIFIER = new HashProofOfWork(null, null, null);
+    protected static final ProofOfWork PROOF_OF_WORK_VERIFIER = new HashProofOfWork(null);
 
     public Client(String ip, int port) {
         this.ip = ip;
@@ -52,7 +52,7 @@ public class Client {
         }
         KeyPair pair = generator.generateKeyPair();
         publicKey = pair.getPublic();
-        System.out.println("My address is " + PublicKeyUtils.getAddress(publicKey));
+        System.out.println("My address is " + PublicAndPrivateKeyUtils.getAddress(publicKey));
         privateKey = pair.getPrivate();
     }
 
@@ -96,7 +96,7 @@ public class Client {
             unspentTransactions.add(record);*/
         }
 
-        proofOfWorkInstance = new HashProofOfWork(this, networkNode, lastBlockInChain);
+        proofOfWorkInstance = new HashProofOfWork(this);
         startProofOfWorkThread();
     }
 
@@ -149,10 +149,15 @@ public class Client {
     /**
      * The method is run on a thread started in network.SocketListener. Is it correct to do this way?
      * Same question for handleReceivedBlock.
+     *
+     * Answer: A better solution is to create a blocking queue where the listener puts messages. This way, the listener
+     * does not have to be aware of the client, it just posts updates into that queue. The client thread that handles
+     * the messages (blocks / transactions) wakes up when a message is received and handles it on a client thread.
+     *
      * @param transaction
      */
     public void handleReceivedTransaction(Transaction transaction) {
-        String logMessage = "I received a transaction from " + PublicKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
+        String logMessage = "Node " + networkNode.getId() + ": I received a transaction from " + PublicAndPrivateKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
         logMessage = logMessage + "Number of inputs: " + transaction.getInputs().size() + "\n";
         logMessage = logMessage + "Number of outputs: " + transaction.getOutputs().size() + "\n";
 
@@ -162,20 +167,15 @@ public class Client {
         // 2. Check that all the inputs from the transaction are not already spent
         if (transaction.hasValidDigitalSignature()) {
             if (verifyTransactionInputs(unspentTransactions, transaction)) {
-                removeTransactionInputsFromUnspentSet(transaction.getInputs());
+//                do not modify the UTXO set now; it is altered when a block on the blockchain arrives!
+//                removeTransactionInputsFromUnspentSet(transaction.getInputs());
                 logMessage = logMessage + "The transaction is accepted and it will be added in a block.";
 
                 transactionsWithoutBlock.add(transaction);
                 // If the transaction is accepted, stop the proof of work thread, wait for it,
                 // add the new transaction and start it again
                 if (proofOfWorkInstance.accept(transaction)) {
-                    proofOfWorkInstance.stop();
-
-                    try {
-                        proofOfWorkThread.join();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    stopProofOfWorkThread();
 
                     proofOfWorkInstance.addTransaction(transaction);
                     startProofOfWorkThread();
@@ -198,8 +198,10 @@ public class Client {
     protected void storeReceivedBlock(Block block) {
     }
 
+    // todo: synchronize
     public void handleReceivedBlock(Block block) {
-        String logMessage = "Node " + networkNode.getId() + ": I received a block! It was mined by node " + block.getMinerId() + ". Hash = " + block.hashCode() + ", height = " + block.getHeight() + "\n";
+        String logMessage = "Node " + networkNode.getId() + ": I received a block! It was mined by node " + block.getMinerId() +
+                ". Hash = " + block.hashCode() + ", height = " + block.getHeight() + ", transactions = " + block.getTransactions().size() + "\n";
         logMessage += "Previous block hash = " + block.getPreviousBlockHash() + ".\n";
         logMessage += "Last block in chain height = " + lastBlockInChain.getHeight() + "\n";
 
@@ -216,10 +218,20 @@ public class Client {
                 if (block.getPreviousBlockHash() == lastBlockInChain.hashCode()) {
                     if (verifyTransactionRecordsInBlock(block, unspentTransactions)) {
                         lastBlockInChain = block;
+
                         updateUnspentTransactions(block, unspentTransactions);
+
+                        stopProofOfWorkThread();
+
+                        logMessage += "Before update: The node has " + transactionsWithoutBlock.size() + " transactions witout block!\n";
+                        updateTransactionsWithoutBlock(block, transactionsWithoutBlock);
+                        logMessage += "After update: The node has " + transactionsWithoutBlock.size() + " transactions witout block!\n";
+
+                        startProofOfWorkThread();
 
                         logMessage += "The block with hash = " + block.hashCode() + " is right after the " +
                                 "former lastBlockInChain. New block height = " + block.getHeight() + "\n";
+                        logMessage += "The node has " + transactionsWithoutBlock.size() + " transactions witout block!\n";
                     } else {
                         logMessage += "The block with hash = " + block.hashCode() + " is right after the " +
                                 "lastBlockInChain but is is not accepted. Block height = " + lastBlockInChain.getHeight() + "\n";
@@ -231,14 +243,7 @@ public class Client {
                 block = addOrphanedBlocks(block);
 
                 if (block.getHeight() > lastBlockInChain.getHeight()) {
-                    // stop the mining process
-                    proofOfWorkInstance.stop();
-
-                    try {
-                        proofOfWorkThread.join();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    stopProofOfWorkThread();
 
                     // change the lastBlockInChain to be the longest block
                     changeLastBlockInChain(block);
@@ -258,7 +263,29 @@ public class Client {
         storeReceivedBlock(block);
     }
 
+    /**
+     * Stops the mining process, sending a signal to the thread and waits for it to exit completely from the loop.
+     */
+    protected void stopProofOfWorkThread() {
+        proofOfWorkInstance.stop();
 
+        try {
+            proofOfWorkThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Removes the transactions received in a mined block from the list that contains transactions that will be added in
+     * a new block.
+     * @param block
+     */
+    private void updateTransactionsWithoutBlock(Block block, List<Transaction> transactionsWithoutBlockList) {
+        for (Transaction transaction : block.getTransactions()) {
+            transactionsWithoutBlockList.remove(transaction);
+        }
+    }
 
     /**
      * A higher block arrived on other branch and the chain of blocks will be changed.
@@ -273,12 +300,13 @@ public class Client {
      * For every block from the lowest common ancestor to the longerBlock verify that all the input records
      * are not already spent, remove them from unspentTransactions and add the outputs in unspentTransactions.
      * The other verifications for a block (proof of work and transactions' digital signatures) were verified
-     * when the block was received and added in the block tree.
+     * when the block was received and added in the block tree. Also, remove the transactions from these blocks from
+     * transactionsWithoutBlock list.
      *
      * If there is an attempt of double spending the initial state will be restored and the lastBlockInChain will
      * remain the same. The block where the double spending was discovered will be removed with all its successors.
      *
-     * @param longerBlock
+     * @param longerBlock the received block that is longer than the lastBlockInChain
      */
     private void changeLastBlockInChain(Block longerBlock) {
         boolean changed;
@@ -296,11 +324,13 @@ public class Client {
     private boolean changeIfPossible(Block longerBlock) {
         boolean possible = true;
         Set<TransactionRecord> auxiliaryUnspentTransactions = new HashSet<>(unspentTransactions);
+        List<Transaction> auxiliaryTransactionsWithoutBlock = new ArrayList<>(transactionsWithoutBlock);
         Block parent = lastBlockInChain;
         long commonAncestorHeight = findLowestCommonAncestor(longerBlock);
 
         // go to the common ancestor and for every transaction in a block, remove the outputs in the unspentTransactions
         // and add the inputs in unspentTransactions, because they are not spent anymore
+        // also, add all the transactions in auxiliaryTransactionsWithoutBlock so that they can be mined and added in the blockchain
         long currentHeight = lastBlockInChain.getHeight();
 
         // do not include the common ancestor
@@ -317,6 +347,8 @@ public class Client {
                 for (TransactionRecord input : transaction.getInputs()) {
                     auxiliaryUnspentTransactions.add(input);
                 }
+
+                auxiliaryTransactionsWithoutBlock.add(transaction);
             }
 
             parent = blockchain.get(parent.getPreviousBlockHash());
@@ -328,6 +360,7 @@ public class Client {
         for (Block block : pathToNewBlock) {
             if (acceptBlock(block, auxiliaryUnspentTransactions)) {
                 updateUnspentTransactions(block, auxiliaryUnspentTransactions);
+                updateTransactionsWithoutBlock(block, auxiliaryTransactionsWithoutBlock);
             } else {
                 possible = false;
                 break;
@@ -337,6 +370,7 @@ public class Client {
         // if the new path is accepted, change the unspentTransactions and the lastBlockInChain variables
         if (possible) {
             unspentTransactions = auxiliaryUnspentTransactions;
+            transactionsWithoutBlock = auxiliaryTransactionsWithoutBlock;
             lastBlockInChain = longerBlock;
         }
 
@@ -351,12 +385,11 @@ public class Client {
      *     2) for every transaction check that all the inputs are sent to the transaction's author, so somebody
      * cannot use an input that is not addressed to him
      *     3) check that every input record from a transaction is not already spent
-     * @param block
-     * @return
+     *
+     * @return true if the block is accepted
      */
     private boolean acceptBlock(Block block, Set<TransactionRecord> unspent) {
-        boolean accepted = true;
-        accepted &= PROOF_OF_WORK_VERIFIER.verify(block);
+        boolean accepted = PROOF_OF_WORK_VERIFIER.verify(block);
 
         for (Transaction transaction : block.getTransactions()) {
             accepted &= transaction.hasValidDigitalSignature();
@@ -396,8 +429,6 @@ public class Client {
 
     /**
      * Computes the blocks from the ancestor to the newly found longest block.
-     * @param longerBlock
-     * @param ancestorHeight
      * @return the list of the blocks, starting with the one after the ancestor
      */
     private List<Block> getBlocksFromCommonAncestorToLongestBlock(Block longerBlock, long ancestorHeight) {
@@ -498,6 +529,8 @@ public class Client {
         boolean valid = true;
         for (TransactionRecord record : transaction.getInputs()) {
             if (!transaction.getSenderPublicKey().equals(record.getRecipient()) || !unspent.contains(record)) {
+                System.out.println("Node " + networkNode.getId() + ": Probleme la tranzactia cu val " + record.getAmount() + " " + record.getRecipient());
+                System.out.println("In hash am " + unspent.size() + " tranzactii.");
                 valid = false;
             }
         }
@@ -507,12 +540,6 @@ public class Client {
     private void removeTransactionInputsFromUnspentSet(List<TransactionRecord> inputs) {
         for (TransactionRecord record : inputs) {
             unspentTransactions.remove(record);
-        }
-    }
-
-    public void removeFromCandidateTransactions(List<Transaction> processed) {
-        for (Transaction transaction : processed) {
-            transactionsWithoutBlock.remove(transaction);
         }
     }
 
@@ -542,5 +569,9 @@ public class Client {
 
     public PrivateKey getPrivateKey() {
         return privateKey;
+    }
+
+    public Node getNetworkNode() {
+        return networkNode;
     }
 }
