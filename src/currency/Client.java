@@ -1,6 +1,8 @@
 package currency;
 
 import currency.utils.PublicAndPrivateKeyUtils;
+import gui.UpdateMessage;
+import gui.UpdateType;
 import network.Node;
 
 import java.io.IOException;
@@ -19,7 +21,7 @@ import java.util.logging.SimpleFormatter;
  *
  * Created by Sorin Nutu on 4/19/2015.
  */
-public class Client {
+public class Client extends Observable {
     protected Logger transactionsLogger;
     private Set<TransactionRecord> unspentTransactions;
     private List<Transaction> transactionsWithoutBlock;
@@ -160,6 +162,10 @@ public class Client {
         String logMessage = "Node " + networkNode.getId() + ": I received a transaction from " + PublicAndPrivateKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
         logMessage = logMessage + "Number of inputs: " + transaction.getInputs().size() + "\n";
         logMessage = logMessage + "Number of outputs: " + transaction.getOutputs().size() + "\n";
+
+        // update the GUI
+        setChanged();
+        notifyObservers(new UpdateMessage(UpdateType.TRANSACTION, transaction));
 
         // Before it is added in the unspent transactions set, it should be verified
         // This is done in two steps:
@@ -506,6 +512,7 @@ public class Client {
                     }
                 }
                 if (orphanFound) {
+                    // todo: check warning
                     orphanBlocks.remove(child.getNonce());
                     blockchain.put(child.hashCode(), child);
                     receivedBlock = child;
