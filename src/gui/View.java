@@ -13,17 +13,18 @@ public class View extends JFrame {
 
     private JTextArea transactionsTextArea;
     private JTextArea blocksTextArea;
+    private JTextArea detailsTextArea;
 
     public View() {
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        JPanel blockchainPanel = createBlockchainPanel();
+        JSplitPane blockchainPane = createBlockchainTab();
 
         JPanel panel2 = new JPanel();
         JLabel label2 = new JLabel("Create a transaction");
         panel2.add(label2);
 
-        tabbedPane.addTab("Real time blockchain", blockchainPanel);
+        tabbedPane.addTab("Real time blockchain", blockchainPane);
         tabbedPane.addTab("Create a transaction", panel2);
 
         add(tabbedPane);
@@ -44,40 +45,57 @@ public class View extends JFrame {
      * - a textarea where details about blocks or transactions will be shown
      * @return the JPanel for the block chain tab
      */
-    private JPanel createBlockchainPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+    private JSplitPane createBlockchainTab() {
+        // the upper part of the tab
+        // tree panel
+        JPanel treePanel = new JPanel();
+        treePanel.add(new JLabel("Real time blockchain"));
 
-        // contains the tree and a text area
-        JPanel upper = new JPanel();
-
-        // transactions text area
+        // transactions panel
+        JPanel transactions = new JPanel(new BorderLayout());
+        JLabel transactionsLabel = new JLabel("Recent transactions");
         transactionsTextArea = new JTextArea(10, 25);
         transactionsTextArea.setEditable(false);
 
         JScrollPane transactionsTextAreaScrollPane = new JScrollPane(transactionsTextArea,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        transactions.add(transactionsLabel, BorderLayout.NORTH);
+        transactions.add(transactionsTextAreaScrollPane, BorderLayout.SOUTH);
 
-        upper.add(transactionsTextAreaScrollPane, BorderLayout.EAST);
-        upper.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        JSplitPane upper = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treePanel, transactions);
+        upper.setDividerSize(2);
 
-        // contains two text areas
-        JPanel lower = new JPanel();
+        // the lower part of the pane
+        // details text area
+        JPanel details = new JPanel(new BorderLayout());
+        JLabel detailsLabel = new JLabel("Details");
+        detailsTextArea = new JTextArea(10, 25);
+        detailsTextArea.setEditable(false);
+
+        JScrollPane detailsTextAreaScrollPane = new JScrollPane(detailsTextArea,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        details.add(detailsLabel, BorderLayout.NORTH);
+        details.add(detailsTextAreaScrollPane, BorderLayout.CENTER);
 
         // blocks text area
+        JPanel blocks = new JPanel(new BorderLayout());
+        JLabel blocksLabel = new JLabel("Recent blocks");
         blocksTextArea = new JTextArea(10, 25);
         blocksTextArea.setEditable(false);
 
         JScrollPane blocksTextAreaScrollPane = new JScrollPane(blocksTextArea,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        blocks.add(blocksLabel, BorderLayout.NORTH);
+        blocks.add(blocksTextAreaScrollPane, BorderLayout.CENTER);
 
-        lower.add(blocksTextAreaScrollPane, BorderLayout.EAST);
-        lower.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+        JSplitPane lower = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, details, blocks);
+        lower.setDividerSize(2);
 
         // place both upper and lower parts in the block chain panel
-        panel.add(upper, BorderLayout.CENTER);
-        panel.add(lower, BorderLayout.SOUTH);
-
-        return panel;
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, upper, lower);
+        splitPane.setDividerSize(3);
+        return splitPane;
     }
 
     public void appendReceivedTransaction(String transaction) {

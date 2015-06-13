@@ -211,6 +211,10 @@ public class Client extends Observable {
         logMessage += "Previous block hash = " + block.getPreviousBlockHash() + ".\n";
         logMessage += "Last block in chain height = " + lastBlockInChain.getHeight() + "\n";
 
+        // update the GUI
+        setChanged();
+        notifyObservers(new UpdateMessage(UpdateType.BLOCK, block));
+
         // validate the proof of work and check the signatures for the transactions in the block
         // there are two steps that are deferred - verifying that there is no double spend and that every
         // input record in a transaction is sent to the transaction's initiator

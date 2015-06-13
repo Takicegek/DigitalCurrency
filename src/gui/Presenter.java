@@ -1,5 +1,6 @@
 package gui;
 
+import currency.Block;
 import currency.Client;
 import currency.Transaction;
 
@@ -36,7 +37,6 @@ public class Presenter implements Observer {
 
     @Override
     public void update(Observable o, Object arg) {
-        System.err.println("HOH HOHOHO HOHOHOHOOO");
         UpdateMessage message = (UpdateMessage) arg;
         switch (message.getUpdateType()) {
             case TRANSACTION:
@@ -44,6 +44,10 @@ public class Presenter implements Observer {
                 String desc = "Transaction with " + transaction.getInputs().size() + " inputs and " + transaction.getOutputs().size() + " outputs\n";
                 view.appendReceivedTransaction(desc);
                 break;
+            case BLOCK:
+                Block block = (Block) message.getData();
+                desc = "Block mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.";
+                view.appendReceivedBlock(desc);
         }
     }
 
