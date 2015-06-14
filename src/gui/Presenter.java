@@ -3,6 +3,12 @@ package gui;
 import currency.Block;
 import currency.Client;
 import currency.Transaction;
+import gui.treelayout.BlockExtentProvider;
+import gui.treelayout.TreePane;
+import org.abego.treelayout.Configuration;
+import org.abego.treelayout.TreeLayout;
+import org.abego.treelayout.util.DefaultConfiguration;
+import org.abego.treelayout.util.DefaultTreeForTreeLayout;
 
 import java.util.Observable;
 import java.util.Observer;
@@ -48,6 +54,32 @@ public class Presenter implements Observer {
                 Block block = (Block) message.getData();
                 desc = "Block mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.";
                 view.appendReceivedBlock(desc);
+                break;
+            case BLOCKCHAIN:
+                Block root = (Block) message.getData();
+
+                DefaultTreeForTreeLayout<Block> treeForTreeLayout = new DefaultTreeForTreeLayout<>(root);
+                addEdgesDepthFirst(treeForTreeLayout, root);
+
+                TreeLayout<Block> layout = new TreeLayout<>(treeForTreeLayout, new BlockExtentProvider(),
+                        new DefaultConfiguration<Block>(25, 10, Configuration.Location.Left));
+
+                // put the tree layout on a swing container that knows how to paint the tree
+                TreePane pane = new TreePane(layout);
+
+                view.changeBlockchain(pane);
+        }
+    }
+
+    /**
+     * Traverse the tree in depth and add every edge in the tree layout.
+     * @param treeLayout
+     * @param root
+     */
+    private void addEdgesDepthFirst(DefaultTreeForTreeLayout<Block> treeLayout, Block root) {
+        for (Block child : root.getChildren()) {
+            treeLayout.addChild(root, child);
+            addEdgesDepthFirst(treeLayout, child);
         }
     }
 

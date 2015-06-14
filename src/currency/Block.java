@@ -15,6 +15,8 @@ public class Block implements Serializable {
     private long nonce;
     private long height;
     private long minerId;
+    // helpful for plotting; this should not be included in the hash
+    private List<Block> children;
 
     public Block(int previousBlockHash, long previousBlockNonce, long previousBlockHeight, long minerId) {
         this.previousBlockHash = previousBlockHash;
@@ -22,10 +24,12 @@ public class Block implements Serializable {
         this.transactions = new ArrayList<>();
         this.height = previousBlockHeight + 1;
         this.minerId = minerId;
+        children = new ArrayList<>();
     }
 
     private Block() {
         transactions = new ArrayList<>();
+        children = new ArrayList<>();
         height = 0;
         nonce = 0;
     }
@@ -74,6 +78,14 @@ public class Block implements Serializable {
         return validBlock;
     }
 
+    public void addChildren(Block block) {
+        children.add(block);
+    }
+
+    public List<Block> getChildren() {
+        return children;
+    }
+
     public long getMinerId() {
         return minerId;
     }
@@ -98,8 +110,10 @@ public class Block implements Serializable {
     public int hashCode() {
         int result = transactions != null ? transactions.hashCode() : 0;
         result = 31 * result + previousBlockHash;
+        result = 31 * result + (int) (previousBlockNonce ^ (previousBlockNonce >>> 32));
         result = 31 * result + (int) (nonce ^ (nonce >>> 32));
         result = 31 * result + (int) (height ^ (height >>> 32));
+        result = 31 * result + (int) (minerId ^ (minerId >>> 32));
         return result;
     }
 

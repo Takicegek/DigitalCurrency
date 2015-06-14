@@ -14,6 +14,7 @@ public class View extends JFrame {
     private JTextArea transactionsTextArea;
     private JTextArea blocksTextArea;
     private JTextArea detailsTextArea;
+    private JPanel blockchainPanel;
 
     public View() {
         JTabbedPane tabbedPane = new JTabbedPane();
@@ -48,8 +49,11 @@ public class View extends JFrame {
     private JSplitPane createBlockchainTab() {
         // the upper part of the tab
         // tree panel
-        JPanel treePanel = new JPanel();
-        treePanel.add(new JLabel("Real time blockchain"));
+        JPanel treePanel = new JPanel(new BorderLayout());
+        treePanel.add(new JLabel("Real time blockchain"), BorderLayout.NORTH);
+
+        blockchainPanel = new JPanel();
+        treePanel.add(blockchainPanel, BorderLayout.CENTER);
 
         // transactions panel
         JPanel transactions = new JPanel(new BorderLayout());
@@ -96,6 +100,11 @@ public class View extends JFrame {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, upper, lower);
         splitPane.setDividerSize(3);
         return splitPane;
+    }
+
+    public void changeBlockchain(JComponent tree) {
+        blockchainPanel.removeAll();
+        blockchainPanel.add(tree);
     }
 
     public void appendReceivedTransaction(String transaction) {

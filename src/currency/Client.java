@@ -40,6 +40,8 @@ public class Client extends Observable {
     private Thread proofOfWorkThread;
     // a leaf in the blockchain - defines the client's state
     private Block lastBlockInChain;
+    // the root of the tree; this is used for tree traversal
+    private Block genesisBlock;
     protected static final ProofOfWork PROOF_OF_WORK_VERIFIER = new HashProofOfWork(null);
 
     public Client(String ip, int port) {
@@ -68,8 +70,10 @@ public class Client extends Observable {
             orphanBlocks = new HashMap<>();
             transactionsWithoutBlock = new ArrayList<>();
 
-            lastBlockInChain = Block.createGenesisBlock();
-            blockchain.put(lastBlockInChain.hashCode(), lastBlockInChain);
+            genesisBlock = Block.createGenesisBlock();
+            blockchain.put(genesisBlock.hashCode(), genesisBlock);
+
+            lastBlockInChain = genesisBlock;
 
             // create a fake transaction to introduce money in the network
             TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
@@ -92,10 +96,11 @@ public class Client extends Observable {
 //            transactionsLogger.info(logMessage);
             System.out.println(logMessage);
 
-            // create a fake transaction to introduce money in the network (this should be removed and left only
-            // for the bootstrap node) !!
-            /*TransactionRecord record = new TransactionRecord(publicKey, publicKey, 10);
-            unspentTransactions.add(record);*/
+            // find the genesis block, starting from the last block in chain
+            genesisBlock = lastBlockInChain;
+            while (blockchain.containsKey(genesisBlock.getPreviousBlockHash())) {
+                genesisBlock = blockchain.get(genesisBlock.getPreviousBlockHash());
+            }
         }
 
         proofOfWorkInstance = new HashProofOfWork(this);
@@ -155,8 +160,6 @@ public class Client extends Observable {
      * Answer: A better solution is to create a blocking queue where the listener puts messages. This way, the listener
      * does not have to be aware of the client, it just posts updates into that queue. The client thread that handles
      * the messages (blocks / transactions) wakes up when a message is received and handles it on a client thread.
-     *
-     * @param transaction
      */
     public void handleReceivedTransaction(Transaction transaction) {
         String logMessage = "Node " + networkNode.getId() + ": I received a transaction from " + PublicAndPrivateKeyUtils.getAddress(transaction.getSenderPublicKey()) + "\n";
@@ -224,6 +227,9 @@ public class Client extends Observable {
             if (blockchain.containsKey(previousId)) {
                 blockchain.put(block.hashCode(), block);
 
+                Block parent = blockchain.get(previousId);
+                parent.addChildren(block);
+
                 // check if this is the next block after the lastBlockInChain
                 if (block.getPreviousBlockHash() == lastBlockInChain.hashCode()) {
                     if (verifyTransactionRecordsInBlock(block, unspentTransactions)) {
@@ -261,6 +267,10 @@ public class Client extends Observable {
                     // create a new proofOfWorkInstance and start mining
                     startProofOfWorkThread();
                 }
+
+                // a new block was added in the tree (and maybe orphans blocks found their parents); update the GUI
+                setChanged();
+                notifyObservers(new UpdateMessage(UpdateType.BLOCKCHAIN, genesisBlock));
             } else {
                 logMessage += "This is an orphan block.\n";
                 orphanBlocks.put(block.hashCode(), block);
@@ -289,7 +299,6 @@ public class Client extends Observable {
     /**
      * Removes the transactions received in a mined block from the list that contains transactions that will be added in
      * a new block.
-     * @param block
      */
     private void updateTransactionsWithoutBlock(Block block, List<Transaction> transactionsWithoutBlockList) {
         for (Transaction transaction : block.getTransactions()) {
@@ -422,8 +431,6 @@ public class Client extends Observable {
 
     /**
      * Remove all the input records from all the transactions from the unspent set and add all the outputs.
-     * @param block
-     * @param unspent
      */
     private void updateUnspentTransactions(Block block, Set<TransactionRecord> unspent) {
         for (Transaction transaction : block.getTransactions()) {
@@ -468,8 +475,7 @@ public class Client extends Observable {
      * both, one step at a time, until they have the same parent. When this happens, their parent is the lowest
      * common ancestor.
      *
-     * @param longerBlock
-     * @return
+     * @return the height of the lowest common ancestor
      */
     private long findLowestCommonAncestor(Block longerBlock) {
         long difference = longerBlock.getHeight() - lastBlockInChain.getHeight();
@@ -501,7 +507,6 @@ public class Client extends Observable {
      * The method returns the block with the higher height. This could be the received block, a child of it or
      * a child of a child of it.
      *
-     * @param receivedBlock
      */
     private Block addOrphanedBlocks(Block receivedBlock) {
         boolean orphanFound;
@@ -516,13 +521,14 @@ public class Client extends Observable {
                     }
                 }
                 if (orphanFound) {
-                    // todo: check warning
-                    orphanBlocks.remove(child.getNonce());
+                    orphanBlocks.remove(child.hashCode());
                     blockchain.put(child.hashCode(), child);
+                    receivedBlock.addChildren(child);
+
                     receivedBlock = child;
                 }
             }
-        } while (orphanFound == true);
+        } while (orphanFound);
         return receivedBlock;
     }
 

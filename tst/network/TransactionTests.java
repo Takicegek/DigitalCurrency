@@ -67,6 +67,23 @@ public class TransactionTests {
         assertEquals("Balance", 2, client1.getBalance(), 0);
         assertEquals("Balance", 0, client2.getBalance(), 0);
         assertEquals("Balance", 8, client3.getBalance(), 0);
+
+        // transaction from client 2 to client 1 and client 3
+        Transaction t3 = Transaction.Builder.getBuilder()
+                .withClientBalance(client3.getBalance())
+                .withPrivateKey(client3.getPrivateKey())
+                .withPublicKey(client3.getPublicKey())
+                .withUnspentTransactions(client3.getUnspentTransactions())
+                .withRecipient(client1.getPublicKey(), 3)
+                .withRecipient(client2.getPublicKey(), 5)
+                .build();
+
+        client3.broadcastTransaction(t3);
+        Thread.sleep(10000);
+
+        assertEquals("Balance", 5, client1.getBalance(), 0);
+        assertEquals("Balance", 5, client2.getBalance(), 0);
+        assertEquals("Balance", 0, client3.getBalance(), 0);
     }
 
     private void waitForStabilization(MockedClient... clients) throws InterruptedException {
