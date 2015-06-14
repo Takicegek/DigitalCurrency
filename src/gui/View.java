@@ -2,6 +2,9 @@ package gui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The project's user interface which has two tabs, one for real time description of the block chain, received
@@ -15,18 +18,23 @@ public class View extends JFrame {
     private JTextArea blocksTextArea;
     private JTextArea detailsTextArea;
     private JPanel blockchainPanel;
+    private JTextField addressTextField;
+    private List<JTextField> recipientsAdresses;
+    private List<JTextField> amounts;
+    private JButton sendButton;
+    private JLabel messageLabel;
 
     public View() {
+        recipientsAdresses = new ArrayList<>();
+        amounts = new ArrayList<>();
+
         JTabbedPane tabbedPane = new JTabbedPane();
 
         JSplitPane blockchainPane = createBlockchainTab();
-
-        JPanel panel2 = new JPanel();
-        JLabel label2 = new JLabel("Create a transaction");
-        panel2.add(label2);
+        JPanel transactionPanel = createTransactionTab();
 
         tabbedPane.addTab("Real time blockchain", blockchainPane);
-        tabbedPane.addTab("Create a transaction", panel2);
+        tabbedPane.addTab("Create a transaction", transactionPanel);
 
         add(tabbedPane);
 
@@ -102,6 +110,53 @@ public class View extends JFrame {
         return splitPane;
     }
 
+    private JPanel createTransactionTab() {
+        JPanel transactionTab = new JPanel();
+        transactionTab.setLayout(new BoxLayout(transactionTab, BoxLayout.Y_AXIS));
+
+        JPanel addressPanel = new JPanel();
+        addressPanel.add(new JLabel("Your address: "));
+        addressTextField = new JTextField(40);
+        addressTextField.setEditable(false);
+        addressPanel.add(addressTextField);
+
+        sendButton = new JButton("Send transaction");
+
+        messageLabel = new JLabel();
+
+        transactionTab.add(addressPanel);
+        transactionTab.add(createPayPanel());
+        transactionTab.add(createPayPanel());
+        transactionTab.add(createPayPanel());
+        transactionTab.add(sendButton);
+        transactionTab.add(messageLabel);
+
+        return transactionTab;
+    }
+
+    private JPanel createPayPanel() {
+        JPanel payPanel = new JPanel();
+
+        JLabel amountLabel = new JLabel("Amount: ");
+        JTextField amountTextField = new JTextField(5);
+        JLabel addressLabel = new JLabel("Address: ");
+        JTextField addressTextField = new JTextField(40);
+
+        payPanel.add(amountLabel);
+        payPanel.add(amountTextField);
+        payPanel.add(addressLabel);
+        payPanel.add(addressTextField);
+
+        recipientsAdresses.add(addressTextField);
+        amounts.add(amountTextField);
+
+        return payPanel;
+    }
+
+    public void setSendButtonActionListener(ActionListener listener) {
+        sendButton.addActionListener(listener);
+    }
+
     public void changeBlockchain(JComponent tree) {
         blockchainPanel.removeAll();
         blockchainPanel.add(tree);
@@ -111,11 +166,27 @@ public class View extends JFrame {
         transactionsTextArea.append(transaction);
     }
 
+    public void setAddressTextField(String addressTextField) {
+        this.addressTextField.setText(addressTextField);
+    }
+
+    public void setMessageLabel(String message) {
+        messageLabel.setText(message);
+    }
+
     public void appendReceivedBlock(String block) {
         blocksTextArea.append(block);
     }
 
     public static void main(String[] args) {
         new View();
+    }
+
+    public List<JTextField> getAmounts() {
+        return amounts;
+    }
+
+    public List<JTextField> getRecipientsAdresses() {
+        return recipientsAdresses;
     }
 }

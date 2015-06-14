@@ -3,6 +3,7 @@ package gui;
 import currency.Block;
 import currency.Client;
 import currency.Transaction;
+import currency.utils.PublicAndPrivateKeyUtils;
 import gui.treelayout.BlockExtentProvider;
 import gui.treelayout.TreePane;
 import org.abego.treelayout.Configuration;
@@ -10,6 +11,12 @@ import org.abego.treelayout.TreeLayout;
 import org.abego.treelayout.util.DefaultConfiguration;
 import org.abego.treelayout.util.DefaultTreeForTreeLayout;
 
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 
@@ -28,7 +35,7 @@ import java.util.Observer;
  *
  * Created by Sorin Nutu on 6/13/2015.
  */
-public class Presenter implements Observer {
+public class Presenter implements Observer, ActionListener {
 
     private Client client;
     private View view;
@@ -39,6 +46,8 @@ public class Presenter implements Observer {
         client.addObserver(this);
 
         view = new View();
+        view.setAddressTextField(client.getAddress());
+        view.setSendButtonActionListener(this);
     }
 
     @Override
@@ -52,7 +61,7 @@ public class Presenter implements Observer {
                 break;
             case BLOCK:
                 Block block = (Block) message.getData();
-                desc = "Block mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.";
+                desc = "Block mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.\n";
                 view.appendReceivedBlock(desc);
                 break;
             case BLOCKCHAIN:
@@ -85,5 +94,53 @@ public class Presenter implements Observer {
 
     public Client getClient() {
         return client;
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // retrieve data
+        List<PublicKey> keys = new ArrayList<>();
+        List<Double> amounts = new ArrayList<>();
+
+        for (JTextField addressField : view.getRecipientsAdresses()) {
+            // some addresses may be empty
+            if (!addressField.getText().equals("")) {
+                System.out.println("Address = " + addressField.getText());
+                String address = addressField.getText();
+                PublicKey key = PublicAndPrivateKeyUtils.getPublicKey(address);
+                keys.add(key);
+            }
+        }
+
+        for (JTextField amountField : view.getAmounts()) {
+            String amountString = amountField.getText();
+            if (!amountString.equals("")) {
+                double amount = Double.parseDouble(amountString);
+                amounts.add(amount);
+            }
+        }
+
+        // create a new transaction
+        Transaction.Builder builder = Transaction.Builder.getBuilder()
+                .withPrivateKey(client.getPrivateKey())
+                .withPublicKey(client.getPublicKey())
+                .withUnspentTransactions(client.getUnspentTransactions())
+                .withClientBalance(client.getBalance());
+
+        try {
+            for (int i = 0; i < keys.size(); i++) {
+                builder.withRecipient(keys.get(i), amounts.get(i));
+            }
+
+            Transaction transaction = builder.build();
+            client.broadcastTransaction(transaction);
+
+        } catch (IllegalArgumentException e1) {
+            view.setMessageLabel("The amount that you want to spend is greater than your balance!");
+        } catch (Exception e1) {
+            view.setMessageLabel("An error encountered. Please check that the addresses are correct!");
+        }
+
+        view.setMessageLabel("The transaction was successfully sent!");
     }
 }

@@ -591,4 +591,8 @@ public class Client extends Observable {
     public Node getNetworkNode() {
         return networkNode;
     }
+
+    public String getAddress() {
+        return PublicAndPrivateKeyUtils.getAddress(publicKey);
+    }
 }
