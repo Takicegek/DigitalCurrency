@@ -141,9 +141,9 @@ public class Client extends Observable {
 
     public double getBalance() {
         double balance = 0;
-        for (TransactionRecord x : unspentTransactions) {
-            if (x.getRecipient().equals(publicKey)) {
-                balance += x.getAmount();
+        for (TransactionRecord record : unspentTransactions) {
+            if (record.getRecipient().equals(publicKey)) {
+                balance += record.getAmount();
             }
         }
         return balance;
