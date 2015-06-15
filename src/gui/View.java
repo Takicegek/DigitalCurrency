@@ -19,6 +19,7 @@ public class View extends JFrame {
     private JTextArea detailsTextArea;
     private JPanel blockchainPanel;
     private JTextField addressTextField;
+    private JTextField balanceTextField;
     private List<JTextField> recipientsAdresses;
     private List<JTextField> amounts;
     private JButton sendButton;
@@ -120,11 +121,18 @@ public class View extends JFrame {
         addressTextField.setEditable(false);
         addressPanel.add(addressTextField);
 
+        JPanel balancePanel = new JPanel();
+        balancePanel.add(new JLabel("Balance: "));
+        balanceTextField = new JTextField(10);
+        balanceTextField.setEditable(false);
+        balancePanel.add(balanceTextField);
+
         sendButton = new JButton("Send transaction");
 
         messageLabel = new JLabel();
 
         transactionTab.add(addressPanel);
+        transactionTab.add(balancePanel);
         transactionTab.add(createPayPanel());
         transactionTab.add(createPayPanel());
         transactionTab.add(createPayPanel());
@@ -157,9 +165,14 @@ public class View extends JFrame {
         sendButton.addActionListener(listener);
     }
 
-    public void changeBlockchain(JComponent tree) {
+    public void updateBlockchain(JComponent tree) {
         blockchainPanel.removeAll();
         blockchainPanel.add(tree);
+        blockchainPanel.repaint();
+    }
+
+    public void updateBalance(Double balance) {
+        balanceTextField.setText(balance.toString());
     }
 
     public void appendReceivedTransaction(String transaction) {

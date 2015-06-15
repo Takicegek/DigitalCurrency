@@ -17,17 +17,5 @@ public class GUIMain {
         Client client1 = p1.getClient();
         Presenter p2 = new Presenter("localhost", 10001);
         Client client2 = p2.getClient();
-
-        Thread.sleep(5000);
-
-        Transaction t1 = Transaction.Builder.getBuilder()
-                .withClientBalance(client1.getBalance())
-                .withPrivateKey(client1.getPrivateKey())
-                .withPublicKey(client1.getPublicKey())
-                .withUnspentTransactions(client1.getUnspentTransactions())
-                .withRecipient(client2.getPublicKey(), 5)
-                .build();
-
-        client1.broadcastTransaction(t1);
     }
 }

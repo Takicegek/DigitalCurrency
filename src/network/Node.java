@@ -171,8 +171,7 @@ public class Node {
     public void broadcastMessage(Object objectToSend) {
         long successorId = successor.getKey();
 
-        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId,
-                (id - 1 + NUMBER_OF_NODES) % NUMBER_OF_NODES, objectToSend);
+        BroadcastMessageWrapper wrapper = new BroadcastMessageWrapper(successorId, id, objectToSend);
         Message message = new Message(MessageType.BROADCAST_MESSAGE, wrapper);
 
         dispatcher.sendMessage(message, false, 0);

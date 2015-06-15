@@ -8,12 +8,15 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.security.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Represents a transaction that is initiated by a client to transfer a certain amount of money.
  * Created by Sorin Nutu on 4/19/2015.
  */
 public class Transaction implements Serializable {
+    private static AtomicLong ID_CREATOR = new AtomicLong(0);
+
     private long id;
     private List<TransactionRecord> inputs;
     private List<TransactionRecord> outputs;
@@ -23,6 +26,7 @@ public class Transaction implements Serializable {
     public Transaction(List<TransactionRecord> inputs, List<TransactionRecord> outputs) {
         this.inputs = inputs;
         this.outputs = outputs;
+        this.id = ID_CREATOR.getAndIncrement();
     }
 
     public List<TransactionRecord> getInputs() {
@@ -67,7 +71,6 @@ public class Transaction implements Serializable {
     }
 
     public static class Builder {
-        private long id;
         private List<TransactionRecord> inputs;
         private List<TransactionRecord> outputs;
         private Set<TransactionRecord> unspentTransactions;
@@ -139,7 +142,6 @@ public class Transaction implements Serializable {
                 if (record.getRecipient().equals(senderPublicKey)) {
                     spentAmount += record.getAmount();
                     inputs.add(record);
-//                    iterator.remove(); // this is not needed; the unspent transactions will be modified only when dealing with blocks
                 }
                 if (spentAmount >= totalSpentAmount) {
                     break;
@@ -203,17 +205,21 @@ public class Transaction implements Serializable {
 
     @Override
     public int hashCode() {
-        int result = inputs != null ? inputs.hashCode() : 0;
+        int result = (int) (id ^ (id >>> 32));
+        result = 31 * result + (inputs != null ? inputs.hashCode() : 0);
         result = 31 * result + (outputs != null ? outputs.hashCode() : 0);
+        result = 31 * result + (signature != null ? Arrays.hashCode(signature) : 0);
+        result = 31 * result + (senderPublicKey != null ? senderPublicKey.hashCode() : 0);
         return result;
     }
 
     @Override
     public String toString() {
         return "Transaction{" +
-                "senderPublicKey=" + PublicAndPrivateKeyUtils.getAddress(senderPublicKey) +
-                ", outputs=" + outputs +
+                "id=" + id +
                 ", inputs=" + inputs +
+                ", outputs=" + outputs +
+                ", senderPublicKey=" + senderPublicKey +
                 '}';
     }
 }

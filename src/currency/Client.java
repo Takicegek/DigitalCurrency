@@ -271,6 +271,11 @@ public class Client extends Observable {
                 // a new block was added in the tree (and maybe orphans blocks found their parents); update the GUI
                 setChanged();
                 notifyObservers(new UpdateMessage(UpdateType.BLOCKCHAIN, genesisBlock));
+
+                // update the balance on the user interface
+                double balance = getBalance();
+                setChanged();
+                notifyObservers(new UpdateMessage(UpdateType.BALANCE, balance));
             } else {
                 logMessage += "This is an orphan block.\n";
                 orphanBlocks.put(block.hashCode(), block);

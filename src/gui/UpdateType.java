@@ -6,5 +6,6 @@ package gui;
 public enum UpdateType {
     BLOCK,
     TRANSACTION,
-    BLOCKCHAIN
+    BLOCKCHAIN,
+    BALANCE
 }

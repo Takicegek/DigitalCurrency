@@ -47,6 +47,7 @@ public class Presenter implements Observer, ActionListener {
 
         view = new View();
         view.setAddressTextField(client.getAddress());
+        view.updateBalance(client.getBalance());
         view.setSendButtonActionListener(this);
     }
 
@@ -76,7 +77,11 @@ public class Presenter implements Observer, ActionListener {
                 // put the tree layout on a swing container that knows how to paint the tree
                 TreePane pane = new TreePane(layout);
 
-                view.changeBlockchain(pane);
+                view.updateBlockchain(pane);
+                break;
+            case BALANCE:
+                Double balance = (Double) message.getData();
+                view.updateBalance(balance);
         }
     }
 
@@ -135,12 +140,12 @@ public class Presenter implements Observer, ActionListener {
             Transaction transaction = builder.build();
             client.broadcastTransaction(transaction);
 
+            view.setMessageLabel("The transaction was successfully sent!");
         } catch (IllegalArgumentException e1) {
             view.setMessageLabel("The amount that you want to spend is greater than your balance!");
         } catch (Exception e1) {
             view.setMessageLabel("An error encountered. Please check that the addresses are correct!");
         }
 
-        view.setMessageLabel("The transaction was successfully sent!");
     }
 }
