@@ -40,8 +40,8 @@ public class Presenter implements Observer, ActionListener {
     private Client client;
     private View view;
 
-    public Presenter(String ip, int port) {
-        client = new Client(ip, port);
+    public Presenter(String ip, int port, String bootstrapIp, int bootstrapPort) {
+        client = new Client(ip, port, bootstrapIp, bootstrapPort);
         client.connectToNetwork();
         client.addObserver(this);
 
@@ -62,7 +62,7 @@ public class Presenter implements Observer, ActionListener {
                 break;
             case BLOCK:
                 Block block = (Block) message.getData();
-                desc = "Block mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.\n";
+                desc = "Block " + block.hashCode() + " mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.\n";
                 view.appendReceivedBlock(desc);
                 break;
             case BLOCKCHAIN:
@@ -82,6 +82,10 @@ public class Presenter implements Observer, ActionListener {
             case BALANCE:
                 Double balance = (Double) message.getData();
                 view.updateBalance(balance);
+                break;
+            case INFO:
+                String details = (String) message.getData();
+                view.appendDetails(details);
         }
     }
 
@@ -148,4 +152,6 @@ public class Presenter implements Observer, ActionListener {
         }
 
     }
+
+
 }

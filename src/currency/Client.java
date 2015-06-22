@@ -34,6 +34,8 @@ public class Client extends Observable {
     protected long id;
     protected String ip;
     protected int port;
+    protected String bootstrapIp;
+    protected int bootstrapPort;
     private PublicKey publicKey;
     private PrivateKey privateKey;
     private ProofOfWork proofOfWorkInstance;
@@ -44,9 +46,11 @@ public class Client extends Observable {
     private Block genesisBlock;
     protected static final ProofOfWork PROOF_OF_WORK_VERIFIER = new HashProofOfWork(null);
 
-    public Client(String ip, int port) {
+    public Client(String ip, int port, String bootstrapIp, int bootstrapPort) {
         this.ip = ip;
         this.port = port;
+        this.bootstrapIp = bootstrapIp;
+        this.bootstrapPort = bootstrapPort;
 
         KeyPairGenerator generator;
         try {
@@ -61,9 +65,9 @@ public class Client extends Observable {
     }
 
     public void connectToNetwork() {
-        initNode(ip, port);
+        initNode();
 
-        if (port == 10000) { // todo change the condition
+        if (port == 10000) { // todo: change the condition
             // create the block chain and add the initial block
             unspentTransactions = new HashSet<>();
             blockchain = new HashMap<>();
@@ -107,8 +111,8 @@ public class Client extends Observable {
         startProofOfWorkThread();
     }
 
-    protected void initNode(String ip, int port) {
-        networkNode = new Node(ip, port, this);
+    protected void initNode() {
+        networkNode = new Node(ip, port, bootstrapIp, bootstrapPort, this);
         this.id = networkNode.getId();
         initLogger();
     }
@@ -207,8 +211,7 @@ public class Client extends Observable {
     protected void storeReceivedBlock(Block block) {
     }
 
-    // todo: synchronize
-    public void handleReceivedBlock(Block block) {
+    public synchronized void handleReceivedBlock(Block block) {
         String logMessage = "Node " + networkNode.getId() + ": I received a block! It was mined by node " + block.getMinerId() +
                 ". Hash = " + block.hashCode() + ", height = " + block.getHeight() + ", transactions = " + block.getTransactions().size() + "\n";
         logMessage += "Previous block hash = " + block.getPreviousBlockHash() + ".\n";
@@ -256,9 +259,10 @@ public class Client extends Observable {
 
                 // check if there is an orphaned block that has the current block as predecessor and return
                 // the child with the higher height
-                block = addOrphanedBlocks(block);
+                Block updatedBlock = addOrphanedBlocks(block);
 
-                if (block.getHeight() > lastBlockInChain.getHeight()) {
+                // check if an orphan was found
+                if (updatedBlock != block && block.getHeight() > lastBlockInChain.getHeight()) {
                     stopProofOfWorkThread();
 
                     // change the lastBlockInChain to be the longest block
@@ -283,6 +287,10 @@ public class Client extends Observable {
         } else {
             logMessage += "The block is not valid.\n";
         }
+
+        setChanged();
+        notifyObservers(new UpdateMessage(UpdateType.INFO, "Last block on chain is " + lastBlockInChain.hashCode() + "\n"));
+
         System.out.println(logMessage);
 //        transactionsLogger.info(logMessage);
         storeReceivedBlock(block);

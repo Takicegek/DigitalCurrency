@@ -179,6 +179,10 @@ public class View extends JFrame {
         transactionsTextArea.append(transaction);
     }
 
+    public void appendDetails(String details) {
+        detailsTextArea.append(details);
+    }
+
     public void setAddressTextField(String addressTextField) {
         this.addressTextField.setText(addressTextField);
     }

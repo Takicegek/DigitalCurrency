@@ -7,5 +7,6 @@ public enum UpdateType {
     BLOCK,
     TRANSACTION,
     BLOCKCHAIN,
-    BALANCE
+    BALANCE,
+    INFO
 }

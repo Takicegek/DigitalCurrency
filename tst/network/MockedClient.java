@@ -22,16 +22,16 @@ public class MockedClient extends Client {
      * @param port
      * @param id
      */
-    public MockedClient(String ip, int port, long id) {
-        super(ip, port);
+    public MockedClient(String ip, int port, String bootstrapIp, int bootstrapPort, long id) {
+        super(ip, port, bootstrapIp, bootstrapPort);
         this.id = id;
         receivedTransactions = new HashSet<>();
         receivedBlocks = new HashSet<>();
     }
 
     @Override
-    protected void initNode(String ip, int port) {
-        networkNode = new MockedNode(ip, port, id, this);
+    protected void initNode() {
+        networkNode = new MockedNode(ip, port, bootstrapIp, bootstrapPort, id, this);
         initLogger();
     }
 

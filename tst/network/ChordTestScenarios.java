@@ -13,10 +13,10 @@ import static org.junit.Assert.assertTrue;
 public class ChordTestScenarios {
     @Test
     public void testTwoNodes() throws InterruptedException {
-        MockedNode node1 = new MockedNode("localhost", 10000, 500, null);
+        MockedNode node1 = new MockedNode("localhost", 10000, "localhost", 10000, 500, null);
         Thread.sleep(5000);
 
-        MockedNode node2 = new MockedNode("localhost", 10001, 501, null);
+        MockedNode node2 = new MockedNode("localhost", 10001, "localhost", 10000, 501, null);
         Thread.sleep(5000);
 
         node1.broadcastMessage("Message from node 1.");
@@ -42,19 +42,19 @@ public class ChordTestScenarios {
 
     @Test
     public void testFourNodes() throws InterruptedException {
-        MockedNode node1 = new MockedNode("localhost", 10000, 900, null);
+        MockedNode node1 = new MockedNode("localhost", 10000, "localhost", 10000, 900, null);
         Thread.sleep(5000);
 
-        MockedNode node2 = new MockedNode("localhost", 10001, 901, null);
+        MockedNode node2 = new MockedNode("localhost", 10001, "localhost", 10000, 901, null);
         Thread.sleep(5000);
 
-        MockedNode node3 = new MockedNode("localhost", 10002, 902, null);
+        MockedNode node3 = new MockedNode("localhost", 10002, "localhost", 10000, 902, null);
         Thread.sleep(5000);
 
         node3.broadcastMessage("Message from node 3.");
         node2.broadcastMessage("Message from node 2.");
 
-        MockedNode node4 = new MockedNode("localhost", 10003, 903, null);
+        MockedNode node4 = new MockedNode("localhost", 10003, "localhost", 10000, 903, null);
         Thread.sleep(5000);
         node4.broadcastMessage("Message from node 4.");
         Thread.sleep(10000);

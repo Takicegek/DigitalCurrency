@@ -9,7 +9,7 @@ import org.abego.treelayout.NodeExtentProvider;
 public class BlockExtentProvider implements NodeExtentProvider<Block> {
     @Override
     public double getWidth(Block block) {
-        return 70;
+        return 90;
     }
 
     @Override

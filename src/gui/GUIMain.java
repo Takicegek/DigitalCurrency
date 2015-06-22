@@ -13,9 +13,9 @@ import java.security.SignatureException;
  */
 public class GUIMain {
     public static void main(String[] args) throws InterruptedException, SignatureException, NoSuchAlgorithmException, InvalidKeyException, IOException {
-        Presenter p1 = new Presenter("localhost", 10000);
-        Client client1 = p1.getClient();
-        Presenter p2 = new Presenter("localhost", 10001);
-        Client client2 = p2.getClient();
+        Presenter p1 = new Presenter("localhost", 10000, "localhost", 10000);
+//        Client client1 = p1.getClient();
+        Presenter p2 = new Presenter("localhost", 10001, "localhost", 10000);
+//        Client client2 = p2.getClient();
     }
 }

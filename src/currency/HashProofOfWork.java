@@ -30,6 +30,7 @@ public class HashProofOfWork implements ProofOfWork {
         externalStop = false;
 
         System.out.println("Node " + networkNode.getId() + ": Started mining a block with " + currentBlock.transactionCount() + " transactions.\n");
+        System.out.println("Node " + networkNode.getId() + ": I have " + client.getTransactionsWithoutBlock().size() + " transactions without block!!!\n");
         while (!stop && !externalStop) {
             if (verify(currentBlock)) {
                 stop = true;
@@ -67,8 +68,8 @@ public class HashProofOfWork implements ProofOfWork {
                 previousBlock.getHeight(), networkNode.getId());
         List<Transaction> transactionsWithoutBlock = client.getTransactionsWithoutBlock();
         System.out.println("Nodul " + networkNode.getId() + ": Am " + transactionsWithoutBlock.size() + " tranzactii fara block!");
-        for (int i = 0; i < transactionsWithoutBlock.size() && i < limit; i++) {
-            currentBlock.addTransaction(transactionsWithoutBlock.get(i));
+        for (int i = 0; i < transactionsWithoutBlock.size() && currentBlock.getTransactions().size() < limit; i++) {
+            addTransaction(transactionsWithoutBlock.get(i));
         }
 
         System.out.println("I will start the mining process again if there are enough transactions!");
@@ -77,9 +78,25 @@ public class HashProofOfWork implements ProofOfWork {
         }
     }
 
+    /**
+     * Accept a transaction only if there is enough space in the current block and it does not have inputs
+     * that are already used by a transaction in the block.
+     * @param transaction
+     * @return
+     */
     @Override
     public boolean accept(Transaction transaction) {
-        return currentBlock.transactionCount() < limit;
+        boolean accepted = (currentBlock.transactionCount() < limit);
+        if (accepted) {
+            for (Transaction transactionFromBlock : currentBlock.getTransactions()) {
+                for (TransactionRecord record : transactionFromBlock.getInputs()) {
+                    if (transaction.getInputs().contains(record)) {
+                        accepted = false;
+                    }
+                }
+            }
+        }
+        return accepted;
     }
 
     @Override
@@ -100,7 +117,7 @@ public class HashProofOfWork implements ProofOfWork {
     @Override
     public boolean verify(Block block) {
         byte[] hash = hashCodeForBlock(block);
-        return (hash[0] == 0 && hash[1] >= 0 && hash[1] <= 40);
+        return (hash[0] == 0 && hash[1] >= 0 && hash[1] <= 10);
     }
 
     protected byte[] hashCodeForBlock(Block block) {

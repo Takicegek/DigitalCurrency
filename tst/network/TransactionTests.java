@@ -17,11 +17,11 @@ import static org.junit.Assert.*;
 public class TransactionTests {
     @Test
     public void testReceivedTransactions() throws InterruptedException, SignatureException, NoSuchAlgorithmException, InvalidKeyException, IOException {
-        MockedClient client1 = new MockedClient("localhost", 10000, 100);
+        MockedClient client1 = new MockedClient("localhost", 10000, "localhost", 10000, 100);
         client1.connectToNetwork();
-        MockedClient client2 = new MockedClient("localhost", 10003, 200);
+        MockedClient client2 = new MockedClient("localhost", 10003, "localhost", 10000, 200);
         client2.connectToNetwork();
-        MockedClient client3 = new MockedClient("localhost", 10004, 300);
+        MockedClient client3 = new MockedClient("localhost", 10004, "localhost", 10000, 300);
         client3.connectToNetwork();
 
         waitForStabilization(client1, client2, client3);
@@ -42,10 +42,7 @@ public class TransactionTests {
 
         client1.broadcastTransaction(t1);
 
-        TransactionRecord record = new TransactionRecord(client1.getPublicKey(), client2.getPublicKey(), 5);
-        while (!client2.getUnspentTransactions().contains(record)) {
-            Thread.sleep(1000);
-        }
+        Thread.sleep(5000);
 
         assertEquals("Balance", 0, client1.getBalance(), 0);
         assertEquals("Balance", 5, client2.getBalance(), 0);

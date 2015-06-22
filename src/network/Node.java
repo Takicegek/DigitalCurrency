@@ -49,7 +49,7 @@ public class Node {
 
     }
 
-    public Node(final String ip, final int port, Client client) {
+    public Node(final String ip, final int port, String bootstrapIp, int bootstrapPort, Client client) {
         bootstrapNodes = new ArrayList<>();
         bootstrapNodes.add(10000);
 
@@ -69,7 +69,7 @@ public class Node {
         if (bootstrapNodes.contains(port)) {
             successor = new NodeInfo(ip, port, id);
         } else {
-            successor = findSuccessor(ip, 10000);
+            successor = findSuccessor(bootstrapIp, bootstrapPort);
             networkLogger.info(id + ": My successor is " + successor.getKey());
 
             dispatcher.sendMessage(new Message(MessageType.NOTIFY_SUCCESSOR, getNodeInfo()), false, successor);
@@ -81,15 +81,15 @@ public class Node {
             fingerTable.add(new NodeInfo("localhost", -1, -1));
         }
 
-        startChordThreads(ip, port);
+        startChordThreads(port);
     }
 
-    protected void startChordThreads(final String ip, final int port) {
+    protected void startChordThreads(final int port) {
         // run the SocketListener in a separate thread to handle incoming messages
         new Thread() {
             @Override
             public void run() {
-                listen(ip, port);
+                listen(port);
             }
         }.start();
 
@@ -141,7 +141,7 @@ public class Node {
         return nodeInfo;
     }
 
-    protected void listen(String ip, int port) {
+    protected void listen(int port) {
         try {
             serverSocket = new ServerSocket(port);
         } catch (UnknownHostException e) {
