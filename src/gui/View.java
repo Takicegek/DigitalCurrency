@@ -77,6 +77,7 @@ public class View extends JFrame {
 
         JSplitPane upper = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treePanel, transactions);
         upper.setDividerSize(2);
+        upper.setResizeWeight(1d);
 
         // the lower part of the pane
         // details text area
@@ -104,6 +105,7 @@ public class View extends JFrame {
 
         JSplitPane lower = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, details, blocks);
         lower.setDividerSize(2);
+        lower.setResizeWeight(1d);
 
         // place both upper and lower parts in the block chain panel
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, upper, lower);
@@ -168,7 +170,7 @@ public class View extends JFrame {
     public void updateBlockchain(JComponent tree) {
         blockchainPanel.removeAll();
         blockchainPanel.add(tree);
-        blockchainPanel.repaint();
+        blockchainPanel.revalidate();
     }
 
     public void updateBalance(Double balance) {

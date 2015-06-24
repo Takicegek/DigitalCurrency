@@ -1,5 +1,7 @@
 package currency;
 
+import gui.UpdateMessage;
+import gui.UpdateType;
 import network.Node;
 
 import java.security.MessageDigest;
@@ -29,6 +31,8 @@ public class HashProofOfWork implements ProofOfWork {
         boolean stop = false;
         externalStop = false;
 
+        client.setChanged();
+        client.notifyObservers(new UpdateMessage(UpdateType.INFO, "Start to create a new block with " + currentBlock.transactionCount() + " transactions\n"));
         System.out.println("Node " + networkNode.getId() + ": Started mining a block with " + currentBlock.transactionCount() + " transactions.\n");
         System.out.println("Node " + networkNode.getId() + ": I have " + client.getTransactionsWithoutBlock().size() + " transactions without block!!!\n");
         while (!stop && !externalStop) {
@@ -36,8 +40,10 @@ public class HashProofOfWork implements ProofOfWork {
                 stop = true;
             } else {
                 currentBlock.incrementNonce();
-                if (currentBlock.getNonce() % 10000 == 0) {
+                if (currentBlock.getNonce() % 5000 == 0) {
                     System.out.println("Nodul " + networkNode.getId() + ": nonce = " + currentBlock.getNonce());
+                    client.setChanged();
+                    client.notifyObservers(new UpdateMessage(UpdateType.INFO, "Searching for nonce. Current value = " + currentBlock.getNonce() + "\n"));
                 }
             }
         }
@@ -52,6 +58,12 @@ public class HashProofOfWork implements ProofOfWork {
             // broadcast the block
             networkNode.broadcastBlock(currentBlock);
             System.out.println("Nodul " + networkNode.getId() + ": Am facut broadcast la un block cu tranzactii = " + currentBlock.getTransactions().size());
+
+            String message = "The proof of work was solved for the block " + currentBlock.hashCode() + "\n";
+            message += "The block contains " + currentBlock.transactionCount() + " transactions and it has been broadcasted.\n";
+
+            client.setChanged();
+            client.notifyObservers(new UpdateMessage(UpdateType.INFO, message));
 
 //            do not continue to mine; the process will start again when the node handles the block
 //            prepareMining();
@@ -138,6 +150,8 @@ public class HashProofOfWork implements ProofOfWork {
     public void stop() {
         externalStop = true;
         System.out.println("External Stop encountered!");
+        client.setChanged();
+        client.notifyObservers(new UpdateMessage(UpdateType.INFO, "The mining process was interrupted by an external event.\n"));
     }
 
     @Override

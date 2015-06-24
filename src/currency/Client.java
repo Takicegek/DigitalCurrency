@@ -608,4 +608,14 @@ public class Client extends Observable {
     public String getAddress() {
         return PublicAndPrivateKeyUtils.getAddress(publicKey);
     }
+
+    @Override
+    public synchronized boolean hasChanged() {
+        return true;
+    }
+
+    @Override
+    protected synchronized void setChanged() {
+        super.setChanged();
+    }
 }
