@@ -1,8 +1,5 @@
 package gui;
 
-import currency.Client;
-import currency.Transaction;
-
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;

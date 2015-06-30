@@ -6,7 +6,6 @@ import network.Node;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,7 +15,7 @@ public class HashProofOfWork implements ProofOfWork {
     private Block currentBlock;
     private Node networkNode;
     private Client client;
-    private boolean externalStop;
+    private volatile boolean externalStop;
     private int limit = 5;
 
     public HashProofOfWork(Client client) {
@@ -129,7 +128,7 @@ public class HashProofOfWork implements ProofOfWork {
     @Override
     public boolean verify(Block block) {
         byte[] hash = hashCodeForBlock(block);
-        return (hash[0] == 0 && hash[1] >= 0 && hash[1] <= 10);
+        return (hash[0] == 0 && hash[1] == 0);
     }
 
     protected byte[] hashCodeForBlock(Block block) {

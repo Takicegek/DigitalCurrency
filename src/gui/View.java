@@ -1,6 +1,7 @@
 package gui;
 
 import javax.swing.*;
+import javax.swing.border.EtchedBorder;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -62,7 +63,10 @@ public class View extends JFrame {
         treePanel.add(new JLabel("Real time blockchain"), BorderLayout.NORTH);
 
         blockchainPanel = new JPanel();
-        treePanel.add(blockchainPanel, BorderLayout.CENTER);
+        JScrollPane scrollForBlockchainPanel = new JScrollPane(blockchainPanel,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        treePanel.add(scrollForBlockchainPanel, BorderLayout.CENTER);
 
         // transactions panel
         JPanel transactions = new JPanel(new BorderLayout());
@@ -133,11 +137,16 @@ public class View extends JFrame {
 
         messageLabel = new JLabel();
 
+        JPanel inputs = new JPanel();
+        inputs.setBorder(BorderFactory.createEtchedBorder(EtchedBorder.RAISED));
+//        inputs.setPreferredSize(new Dimension(100, 400));
+        inputs.add(createPayPanel());
+        inputs.add(createPayPanel());
+        inputs.add(createPayPanel());
+
         transactionTab.add(addressPanel);
         transactionTab.add(balancePanel);
-        transactionTab.add(createPayPanel());
-        transactionTab.add(createPayPanel());
-        transactionTab.add(createPayPanel());
+        transactionTab.add(inputs);
         transactionTab.add(sendButton);
         transactionTab.add(messageLabel);
 

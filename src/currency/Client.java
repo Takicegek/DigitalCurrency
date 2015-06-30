@@ -609,6 +609,10 @@ public class Client extends Observable {
         return PublicAndPrivateKeyUtils.getAddress(publicKey);
     }
 
+    public Block getGenesisBlock() {
+        return genesisBlock;
+    }
+
     @Override
     public synchronized boolean hasChanged() {
         return true;

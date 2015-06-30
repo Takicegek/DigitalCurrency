@@ -110,6 +110,9 @@ public class Transaction implements Serializable {
         }
 
         public Builder withRecipient(PublicKey recipientPublicKey, double amount) {
+            if (amount <= 0) {
+                throw new IllegalArgumentException("The amount should be positive.");
+            }
             if (totalSpentAmount + amount > clientBalance) {
                 throw new IllegalArgumentException("The balance is smaller than the amount to be sent.");
             }

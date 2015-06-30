@@ -39,8 +39,15 @@ public class Presenter implements Observer, ActionListener {
 
     private Client client;
     private View view;
+    private Block rootBlock;
 
     public Presenter(String ip, int port, String bootstrapIp, int bootstrapPort) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         client = new Client(ip, port, bootstrapIp, bootstrapPort);
         client.connectToNetwork();
         client.addObserver(this);
@@ -49,6 +56,9 @@ public class Presenter implements Observer, ActionListener {
         view.setAddressTextField(client.getAddress());
         view.updateBalance(client.getBalance());
         view.setSendButtonActionListener(this);
+
+        rootBlock = client.getGenesisBlock();
+        updateBlockchain();
     }
 
     @Override
@@ -66,18 +76,7 @@ public class Presenter implements Observer, ActionListener {
                 view.appendReceivedBlock(desc);
                 break;
             case BLOCKCHAIN:
-                Block root = (Block) message.getData();
-
-                DefaultTreeForTreeLayout<Block> treeForTreeLayout = new DefaultTreeForTreeLayout<>(root);
-                addEdgesDepthFirst(treeForTreeLayout, root);
-
-                TreeLayout<Block> layout = new TreeLayout<>(treeForTreeLayout, new BlockExtentProvider(),
-                        new DefaultConfiguration<Block>(25, 10, Configuration.Location.Left));
-
-                // put the tree layout on a swing container that knows how to paint the tree
-                TreePane pane = new TreePane(layout);
-
-                view.updateBlockchain(pane);
+                updateBlockchain();
                 break;
             case BALANCE:
                 Double balance = (Double) message.getData();
@@ -87,6 +86,19 @@ public class Presenter implements Observer, ActionListener {
                 String details = (String) message.getData();
                 view.appendDetails(details);
         }
+    }
+
+    private void updateBlockchain() {
+        DefaultTreeForTreeLayout<Block> treeForTreeLayout = new DefaultTreeForTreeLayout<>(rootBlock);
+        addEdgesDepthFirst(treeForTreeLayout, rootBlock);
+
+        TreeLayout<Block> layout = new TreeLayout<>(treeForTreeLayout, new BlockExtentProvider(),
+                new DefaultConfiguration<Block>(25, 10, Configuration.Location.Left));
+
+        // put the tree layout on a swing container that knows how to paint the tree
+        TreePane pane = new TreePane(layout);
+
+        view.updateBlockchain(pane);
     }
 
     /**
@@ -111,22 +123,32 @@ public class Presenter implements Observer, ActionListener {
         List<PublicKey> keys = new ArrayList<>();
         List<Double> amounts = new ArrayList<>();
 
-        for (JTextField addressField : view.getRecipientsAdresses()) {
-            // some addresses may be empty
-            if (!addressField.getText().equals("")) {
-                System.out.println("Address = " + addressField.getText());
-                String address = addressField.getText();
-                PublicKey key = PublicAndPrivateKeyUtils.getPublicKey(address);
-                keys.add(key);
+        try {
+            for (JTextField addressField : view.getRecipientsAdresses()) {
+                // some addresses may be empty
+                if (!addressField.getText().equals("")) {
+                    System.out.println("Address = " + addressField.getText());
+                    String address = addressField.getText();
+                    PublicKey key = PublicAndPrivateKeyUtils.getPublicKey(address);
+                    keys.add(key);
+                }
             }
+        } catch (Exception e1) {
+            view.setMessageLabel("The address cannot be transformed into a public key!");
+            return;
         }
 
-        for (JTextField amountField : view.getAmounts()) {
-            String amountString = amountField.getText();
-            if (!amountString.equals("")) {
-                double amount = Double.parseDouble(amountString);
-                amounts.add(amount);
+        try {
+            for (JTextField amountField : view.getAmounts()) {
+                String amountString = amountField.getText();
+                if (!amountString.equals("")) {
+                    double amount = Double.parseDouble(amountString);
+                    amounts.add(amount);
+                }
             }
+        } catch (NumberFormatException e1) {
+            view.setMessageLabel("The amount cannot be transformed into a number!");
+            return;
         }
 
         // create a new transaction
@@ -146,11 +168,20 @@ public class Presenter implements Observer, ActionListener {
 
             view.setMessageLabel("The transaction was successfully sent!");
         } catch (IllegalArgumentException e1) {
-            view.setMessageLabel("The amount that you want to spend is greater than your balance!");
+            view.setMessageLabel(e1.getMessage());
         } catch (Exception e1) {
             view.setMessageLabel("An error encountered. Please check that the addresses are correct!");
         }
 
+    }
+
+    public static void main(String[] args) {
+        String ip = args[0];
+        int port = Integer.parseInt(args[1]);
+        String bootstrapIp = args[2];
+        int bootstrapPort = Integer.parseInt(args[3]);
+
+        new Presenter(ip, port, bootstrapIp, bootstrapPort);
     }
 
 
