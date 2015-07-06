@@ -238,6 +238,7 @@ public class Client extends Observable {
                     if (verifyTransactionRecordsInBlock(block, unspentTransactions)) {
                         lastBlockInChain = block;
 
+                        // update unspentTransactions and add all the transactions, including the REWARD ones
                         logMessage += "Before update: The node has " + unspentTransactions.size() + " unspent transactions!\n";
                         updateUnspentTransactions(block, unspentTransactions);
                         logMessage += "After update: The node has " + unspentTransactions.size() + " unspent transactions!\n";
@@ -424,8 +425,10 @@ public class Client extends Observable {
         boolean accepted = PROOF_OF_WORK_VERIFIER.verify(block);
 
         for (Transaction transaction : block.getTransactions()) {
-            accepted &= transaction.hasValidDigitalSignature();
-            accepted &= verifyTransactionInputs(unspent, transaction);
+            if (transaction.getType() != TransactionType.REWARD) {
+                accepted &= transaction.hasValidDigitalSignature();
+                accepted &= verifyTransactionInputs(unspent, transaction);
+            }
             if (!accepted) {
                 break;
             }
@@ -557,6 +560,10 @@ public class Client extends Observable {
      */
     private boolean verifyTransactionInputs(Set<TransactionRecord> unspent, Transaction transaction) {
         boolean valid = true;
+        // the reward transactions are considered valid
+        if (transaction.getType() == TransactionType.REWARD) {
+            return valid;
+        }
         for (TransactionRecord record : transaction.getInputs()) {
             if (!transaction.getSenderPublicKey().equals(record.getRecipient()) || !unspent.contains(record)) {
                 System.out.println("Node " + networkNode.getId() + ": Probleme la tranzactia cu val " + record.getAmount() + " " + record.getRecipient());

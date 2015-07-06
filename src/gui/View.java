@@ -2,6 +2,7 @@ package gui;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
+import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -73,9 +74,11 @@ public class View extends JFrame {
         JLabel transactionsLabel = new JLabel("Recent transactions");
         transactionsTextArea = new JTextArea(10, 25);
         transactionsTextArea.setEditable(false);
+        DefaultCaret transactionsTextAreaCaret = (DefaultCaret) transactionsTextArea.getCaret();
+        transactionsTextAreaCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
         JScrollPane transactionsTextAreaScrollPane = new JScrollPane(transactionsTextArea,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
         transactions.add(transactionsLabel, BorderLayout.NORTH);
         transactions.add(transactionsTextAreaScrollPane, BorderLayout.SOUTH);
 
@@ -86,9 +89,11 @@ public class View extends JFrame {
         // the lower part of the pane
         // details text area
         JPanel details = new JPanel(new BorderLayout());
-        JLabel detailsLabel = new JLabel("Details");
+        JLabel detailsLabel = new JLabel("Mining details");
         detailsTextArea = new JTextArea(10, 25);
         detailsTextArea.setEditable(false);
+        DefaultCaret detailsTextAreaCaret = (DefaultCaret) detailsTextArea.getCaret();
+        detailsTextAreaCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
         JScrollPane detailsTextAreaScrollPane = new JScrollPane(detailsTextArea,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -100,9 +105,11 @@ public class View extends JFrame {
         JLabel blocksLabel = new JLabel("Recent blocks");
         blocksTextArea = new JTextArea(10, 25);
         blocksTextArea.setEditable(false);
+        DefaultCaret blocksTextAreaCaret = (DefaultCaret) blocksTextArea.getCaret();
+        blocksTextAreaCaret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
         JScrollPane blocksTextAreaScrollPane = new JScrollPane(blocksTextArea,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         blocks.add(blocksLabel, BorderLayout.NORTH);
         blocks.add(blocksTextAreaScrollPane, BorderLayout.CENTER);
 
@@ -114,6 +121,7 @@ public class View extends JFrame {
         // place both upper and lower parts in the block chain panel
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, upper, lower);
         splitPane.setDividerSize(3);
+        splitPane.setEnabled(false);
         return splitPane;
     }
 
@@ -131,15 +139,20 @@ public class View extends JFrame {
         balancePanel.add(new JLabel("Balance: "));
         balanceTextField = new JTextField(10);
         balanceTextField.setEditable(false);
+        balanceTextField.setForeground(Color.BLACK);
+        Font f = new Font("font", Font.BOLD, 20);
+        balanceTextField.setFont(f);
         balancePanel.add(balanceTextField);
 
         sendButton = new JButton("Send transaction");
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(sendButton, BorderLayout.NORTH);
 
         messageLabel = new JLabel();
+        buttonPanel.add(messageLabel, BorderLayout.SOUTH);
 
         JPanel inputs = new JPanel();
         inputs.setBorder(BorderFactory.createEtchedBorder(EtchedBorder.RAISED));
-//        inputs.setPreferredSize(new Dimension(100, 400));
         inputs.add(createPayPanel());
         inputs.add(createPayPanel());
         inputs.add(createPayPanel());
@@ -147,8 +160,8 @@ public class View extends JFrame {
         transactionTab.add(addressPanel);
         transactionTab.add(balancePanel);
         transactionTab.add(inputs);
-        transactionTab.add(sendButton);
-        transactionTab.add(messageLabel);
+        transactionTab.add(buttonPanel);
+//        transactionTab.add(messagePanel);
 
         return transactionTab;
     }

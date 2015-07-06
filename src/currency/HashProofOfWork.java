@@ -6,6 +6,7 @@ import network.Node;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -77,6 +78,9 @@ public class HashProofOfWork implements ProofOfWork {
         Block previousBlock = client.getLastBlockInChain();
         currentBlock = new Block(previousBlock.hashCode(), previousBlock.getNonce(),
                 previousBlock.getHeight(), networkNode.getId());
+
+        addTransaction(createRewardTransaction());
+
         List<Transaction> transactionsWithoutBlock = client.getTransactionsWithoutBlock();
         System.out.println("Nodul " + networkNode.getId() + ": Am " + transactionsWithoutBlock.size() + " tranzactii fara block!");
         for (int i = 0; i < transactionsWithoutBlock.size() && currentBlock.getTransactions().size() < limit; i++) {
@@ -84,9 +88,17 @@ public class HashProofOfWork implements ProofOfWork {
         }
 
         System.out.println("I will start the mining process again if there are enough transactions!");
-        if (currentBlock.transactionCount() > 0) {
+        if (currentBlock.transactionCount() > 1) {
             mine();
         }
+    }
+
+    private Transaction createRewardTransaction() {
+        TransactionRecord record = new TransactionRecord(client.getPublicKey(), client.getPublicKey(), 1);
+        List<TransactionRecord> outputs = new ArrayList<>();
+        outputs.add(record);
+
+        return Transaction.createRewardTransaction(outputs);
     }
 
     /**

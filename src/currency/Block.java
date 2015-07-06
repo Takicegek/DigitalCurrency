@@ -73,7 +73,10 @@ public class Block implements Serializable {
     public boolean validateTransactionsInBlock() {
         boolean validBlock = true;
         for (int i = 0; i < transactions.size() && validBlock; i++) {
-            validBlock = validBlock & transactions.get(i).hasValidDigitalSignature();
+            // the reward transactions do not have digital signature
+            if (transactions.get(i).getType() != TransactionType.REWARD) {
+                validBlock = validBlock & transactions.get(i).hasValidDigitalSignature();
+            }
         }
         return validBlock;
     }

@@ -4,9 +4,12 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
+import java.util.Map;
 
-import javax.swing.JComponent;
+import javax.swing.*;
 
 import currency.Block;
 import org.abego.treelayout.TreeForTreeLayout;
@@ -38,11 +41,29 @@ public class TreePane extends JComponent {
      *
      * @param treeLayout
      */
-    public TreePane(TreeLayout<Block> treeLayout) {
+    public TreePane(final TreeLayout<Block> treeLayout) {
         this.treeLayout = treeLayout;
 
         Dimension size = treeLayout.getBounds().getBounds().getSize();
         setPreferredSize(size);
+
+        this.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int x = e.getX();
+                int y = e.getY();
+
+                for (Map.Entry<Block, Rectangle2D.Double> box : treeLayout.getNodeBounds().entrySet()) {
+                    Rectangle2D.Double rectangle = box.getValue();
+                    if (x >= rectangle.getX() && x <= rectangle.getX() + rectangle.getWidth() &&
+                            y >= rectangle.getY() && y <= rectangle.getY() + rectangle.getHeight()) {
+                        String message = "Block " + box.getKey().hashCode() + ", mined by node " + box.getKey().getMinerId() + "\n";
+                        message += "It contains " + box.getKey().getTransactions().size() + " transactions.";
+                        JOptionPane.showMessageDialog(TreePane.this, message);
+                    }
+                }
+            }
+        });
     }
 
     // -------------------------------------------------------------------

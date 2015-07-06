@@ -22,11 +22,29 @@ public class Transaction implements Serializable {
     private List<TransactionRecord> outputs;
     private byte[] signature;
     private PublicKey senderPublicKey;
+    private TransactionType type;
 
     public Transaction(List<TransactionRecord> inputs, List<TransactionRecord> outputs) {
         this.inputs = inputs;
         this.outputs = outputs;
         this.id = ID_CREATOR.getAndIncrement();
+        this.type = TransactionType.NORMAL;
+    }
+
+    private Transaction(List<TransactionRecord> outputs) {
+        inputs = new ArrayList<>();
+        this.outputs = outputs;
+        this.id = ID_CREATOR.getAndIncrement();
+        this.type = TransactionType.REWARD;
+    }
+
+    /**
+     * Creates a transaction that contains a single output representing the reward for the miner.
+     * @param outputs
+     * @return
+     */
+    public static Transaction createRewardTransaction(List<TransactionRecord> outputs) {
+        return new Transaction(outputs);
     }
 
     public List<TransactionRecord> getInputs() {
@@ -187,6 +205,10 @@ public class Transaction implements Serializable {
         outputStream.writeObject(transaction.toString());
 
         return byteArrayOutputStream.toByteArray();
+    }
+
+    public TransactionType getType() {
+        return type;
     }
 
     @Override

@@ -64,27 +64,37 @@ public class Presenter implements Observer, ActionListener {
     @Override
     public void update(Observable o, Object arg) {
         UpdateMessage message = (UpdateMessage) arg;
-        switch (message.getUpdateType()) {
-            case TRANSACTION:
-                Transaction transaction = (Transaction) message.getData();
-                String desc = "Transaction with " + transaction.getInputs().size() + " inputs and " + transaction.getOutputs().size() + " outputs\n";
-                view.appendReceivedTransaction(desc);
-                break;
-            case BLOCK:
-                Block block = (Block) message.getData();
-                desc = "Block " + block.hashCode() + " mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.\n";
-                view.appendReceivedBlock(desc);
-                break;
-            case BLOCKCHAIN:
-                updateBlockchain();
-                break;
-            case BALANCE:
-                Double balance = (Double) message.getData();
-                view.updateBalance(balance);
-                break;
-            case INFO:
-                String details = (String) message.getData();
-                view.appendDetails(details);
+        try {
+            switch (message.getUpdateType()) {
+                case TRANSACTION:
+                    Transaction transaction = (Transaction) message.getData();
+                    String desc = "Transaction with " + transaction.getInputs().size() + " inputs and " + transaction.getOutputs().size() + " outputs\n";
+
+                    for (int i = 0; i < transaction.getOutputs().size(); i++) {
+                        desc += "   Output " + (i + 1) + ": amount = " + transaction.getOutputs().get(i).getAmount() + "\n";
+                    }
+
+                    view.appendReceivedTransaction(desc);
+                    break;
+                case BLOCK:
+                    Block block = (Block) message.getData();
+                    desc = "Block " + block.hashCode() + " mined by node " + block.getMinerId() + " with " + block.getTransactions().size() + " transactions.\n";
+                    view.appendReceivedBlock(desc);
+                    break;
+                case BLOCKCHAIN:
+                    updateBlockchain();
+                    break;
+                case BALANCE:
+                    Double balance = (Double) message.getData();
+                    view.updateBalance(balance);
+                    break;
+                case INFO:
+                    String details = (String) message.getData();
+                    view.appendDetails(details);
+            }
+        } catch (NullPointerException e) {
+            // the view is not yet initialized
+            // do nothing
         }
     }
 
@@ -161,6 +171,10 @@ public class Presenter implements Observer, ActionListener {
         try {
             for (int i = 0; i < keys.size(); i++) {
                 builder.withRecipient(keys.get(i), amounts.get(i));
+            }
+
+            if (keys.size() == 0) {
+                throw new IllegalArgumentException("A transaction should have at least one input!");
             }
 
             Transaction transaction = builder.build();

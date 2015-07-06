@@ -12,7 +12,6 @@ import java.util.logging.Logger;
 /**
  * The dispatcher helps with multiplexing a communication channel between multiple threads.
  *
- * todo update this
  * When a thread sends a message, it will return a Future object.
  * Internally, the dispatcher assigns a tag to the message and maps the tag to the returned future.
  * When the answer to a message is received, its tag is retrieved and the message is assigned
